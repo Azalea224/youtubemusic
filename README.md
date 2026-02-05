@@ -75,15 +75,6 @@ Plugins are loaded from the app data `plugins/` directory (e.g. `~/.config/youtu
 
 Enable or disable plugins in Settings > Plugins. See `plugins/example/` for a reference.
 
-**Lyrics plugin:** Play a song → open Now Playing (click album art) → click the **Lyrics** tab. The plugin hijacks the tab and adds LRCLIB, Lyrics.ovh, and Genius as sources. Uses the MediaSession API for track info (no polling needed).
-
-## Troubleshooting
-
-**App freezes or crashes shortly after starting**
-
-- Plugins are disabled by default for stability.
-- To manually reset: delete the settings file (e.g. `~/.config/youtube-music-client/settings.json` on Linux) and restart.
-
 ## License
 
 MIT
