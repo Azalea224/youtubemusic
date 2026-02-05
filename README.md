@@ -4,7 +4,7 @@ A multi-platform (Windows, Linux, macOS) YouTube Music desktop client built with
 
 ## Precompiled Builds
 
-Precompiled builds are published to [GitHub Releases](https://github.com/azalea/youtubemusic/releases) on each version tag. Download the appropriate package for your platform:
+Precompiled builds are published to [GitHub Releases](https://github.com/azalea224/youtubemusic/releases) on each version tag. Download the appropriate package for your platform:
 
 | Platform | Format |
 |----------|--------|
