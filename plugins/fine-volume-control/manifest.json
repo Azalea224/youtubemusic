@@ -1,0 +1,7 @@
+{
+  "name": "Fine Volume Control",
+  "version": "1.0.0",
+  "description": "Replaces the volume bar with a percentage input. Enter 0–100 and press Enter, or click outside to apply.",
+  "main": "index.js",
+  "permissions": []
+}

@@ -1,0 +1,27 @@
+[package]
+name = "youtube-music-client"
+version = "0.1.0"
+description = "Multi-platform YouTube Music desktop client with Discord Rich Presence and plugin support"
+authors = ["you"]
+edition = "2021"
+
+[lib]
+name = "youtube_music_client_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-opener = "2"
+tauri-plugin-store = "2"
+tauri-plugin-global-shortcut = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+url = "2.5"
+discord-rich-presence = "1.0"
+tiny_http = "0.12"
+urlencoding = "2.1"
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+regex = "1"

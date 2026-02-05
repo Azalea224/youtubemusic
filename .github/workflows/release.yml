@@ -1,0 +1,91 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release-linux-amd64:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run electron:build -- --linux
+        env:
+          CI: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-amd64
+          path: release/
+
+  release-linux-arm64:
+    runs-on: ubuntu-22.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run electron:build -- --linux --arm64
+        env:
+          CI: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-arm64
+          path: release/
+
+  release-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run electron:build -- --win
+        env:
+          CI: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: release/
+
+  release-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run electron:build -- --mac
+        env:
+          CI: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: release/
+
+  publish-release:
+    needs: [release-linux-amd64, release-linux-arm64, release-windows, release-macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            linux-amd64/*
+            linux-arm64/*
+            windows/*
+            macos/*
