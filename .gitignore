@@ -26,6 +26,3 @@ dist-ssr
 # Electron / precompiled builds
 # Build outputs go to release/ - do not commit; use GitHub Releases for distribution
 release/
-
-# Tauri (legacy - removed)
-src-tauri/target
