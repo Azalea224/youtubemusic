@@ -1,0 +1,103 @@
+name: Build and Publish Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+# Grant write permissions globally so all jobs can interact with Releases
+permissions:
+  contents: write
+
+jobs:
+  release-linux-amd64:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run electron:build -- --linux --publish never
+        env:
+          CI: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-amd64
+          path: release/
+
+  release-linux-arm64:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run electron:build -- --linux AppImage --arm64 --publish never
+        env:
+          CI: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-arm64
+          path: release/
+
+  release-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run electron:build -- --win --publish never
+        env:
+          CI: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: release/
+
+  release-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run electron:build -- --mac --publish never
+        env:
+          CI: true
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: release/
+
+  publish-release:
+    needs: [release-linux-amd64, release-linux-arm64, release-windows, release-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Display structure of downloaded artifacts
+        run: ls -R artifacts/
+      - uses: softprops/action-gh-release@v2
+        with:
+          # Use the tag name from the push event
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          # This glob pattern looks into each artifact subfolder for build files
+          files: |
+            artifacts/**/*.AppImage
+            artifacts/**/*.deb
+            artifacts/**/*.exe
+            artifacts/**/*.dmg
+            artifacts/**/*.zip
