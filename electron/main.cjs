@@ -379,6 +379,11 @@ function createMainWindow() {
   mainWindow.on("close", (e) => {
     const s = getSettings();
     if (s.general.minimize_to_tray && !app.isQuitting) {
+      // If window is already hidden, user is trying to quit from taskbar/dock - actually quit
+      if (mainWindow && !mainWindow.isVisible()) {
+        app.quit();
+        return;
+      }
       e.preventDefault();
       mainWindow.hide();
     }
@@ -505,14 +510,45 @@ app.on("window-all-closed", () => {
   }
 });
 
-app.on("before-quit", () => {
+app.on("before-quit", (e) => {
   app.isQuitting = true;
-  if (discordClient) {
-    try {
-      if (typeof discordClient.destroy === "function") discordClient.destroy();
-      else if (typeof discordClient.disconnect === "function") discordClient.disconnect();
-    } catch {}
-    discordClient = null;
-  }
   globalShortcut.unregisterAll();
+
+  if (discordClient) {
+    // Discord RPC disconnect is async (doesn't return Promise) - delay quit to allow cleanup
+    e.preventDefault();
+    const client = discordClient;
+    discordClient = null;
+    try {
+      if (typeof client.destroy === "function") client.destroy();
+      else if (typeof client.disconnect === "function") client.disconnect();
+    } catch {}
+    // Give Discord IPC time to close before proceeding with quit
+    setTimeout(() => {
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.destroy();
+      if (settingsWindow && !settingsWindow.isDestroyed()) settingsWindow.destroy();
+      if (tray) {
+        try {
+          tray.destroy();
+        } catch {}
+        tray = null;
+      }
+      mainWindow = null;
+      settingsWindow = null;
+      app.quit();
+    }, 150);
+    return;
+  }
+
+  // No Discord - destroy windows and tray explicitly for clean shutdown
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.destroy();
+  if (settingsWindow && !settingsWindow.isDestroyed()) settingsWindow.destroy();
+  if (tray) {
+    try {
+      tray.destroy();
+    } catch {}
+    tray = null;
+  }
+  mainWindow = null;
+  settingsWindow = null;
 });
