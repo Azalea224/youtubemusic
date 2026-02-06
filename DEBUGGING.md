@@ -4,12 +4,18 @@ Use these steps to find why plugins aren't working.
 
 ## 1. Enable DevTools (see JavaScript console)
 
-**Option A: Keyboard shortcut**
+**Option A: Menu**
 - Focus the YouTube Music window (main window)
-- Press **Ctrl+Shift+I** (Linux/Windows) or **Cmd+Option+I** (macOS)
+- Click **View → Toggle Developer Tools**
 - DevTools opens; go to the **Console** tab
 
-**Option B: Auto-open in debug builds**
+**Option B: Keyboard shortcut**
+- Focus the YouTube Music window (main window)
+- Press **Ctrl+Shift+I** (Linux/Windows) or **Cmd+Option+I** (macOS)
+- DevTools opens; go to the **Console** tab  
+- *Note: On some Linux setups this may conflict with screenshot shortcuts; use the menu instead.*
+
+**Option C: Auto-open in debug builds**
 ```bash
 YTM_DEBUG=1 npm run electron:dev
 ```

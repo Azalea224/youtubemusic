@@ -140,7 +140,7 @@ function ensureDefaultPlugins() {
     fs.rmSync(pluginsDest, { recursive: true });
   }
   fs.mkdirSync(pluginsDest, { recursive: true });
-  const defaultPlugins = ["fine-volume-control"];
+  const defaultPlugins = ["fine-volume-control", "Multi-Source Lyrics CC"];
   const toCopy = isDev
     ? fs.readdirSync(pluginsSource).filter((n) => {
         const p = path.join(pluginsSource, n);
@@ -176,7 +176,7 @@ function copyDirSync(src, dst) {
 function getEnabledPlugins() {
   const s = getSettings();
   const arr = s.plugins.enabled_plugins;
-  return Array.isArray(arr) && arr.length > 0 ? arr : ["fine-volume-control"];
+  return Array.isArray(arr) && arr.length > 0 ? arr : ["fine-volume-control", "Multi-Source Lyrics CC"];
 }
 
 function getPluginInjectionScript() {
@@ -416,14 +416,24 @@ function createMainWindow() {
     mainWindow = null;
   });
 
-  // Minimal menu with Settings (fallback when global shortcut conflicts on some platforms)
+  // Minimal menu with Settings and DevTools (fallback when global shortcut conflicts on some platforms)
+  const spacer = process.platform !== "darwin" ? [
+    { label: "   ", submenu: [{ label: " ", enabled: false }] },
+  ] : [];
   const appMenu = Menu.buildFromTemplate([
+    ...spacer,
     {
       label: process.platform === "darwin" ? "YouTube Music" : "File",
       submenu: [
         { label: "Settings", accelerator: process.platform === "darwin" ? "Command+Shift+S" : "Ctrl+Shift+S", click: () => showSettings() },
         { type: "separator" },
         { label: process.platform === "darwin" ? "Quit" : "Exit", role: "quit" },
+      ],
+    },
+    {
+      label: "View",
+      submenu: [
+        { label: "Toggle Developer Tools", accelerator: process.platform === "darwin" ? "Command+Option+I" : "Ctrl+Shift+I", click: () => mainWindow?.webContents?.toggleDevTools() },
       ],
     },
   ]);
@@ -520,15 +530,45 @@ app.whenReady().then(() => {
     console.warn("[YTM] Could not register settings shortcut; use tray menu or Settings in app menu.");
   }
 
+  const initialSettings = getSettings();
+  let lastEnabledPlugins = (initialSettings.plugins?.enabled_plugins || []).slice().sort();
+
   ipcMain.handle("get-settings", () => getSettings());
   ipcMain.handle("set-settings", (_, settings) => {
+    const prevPlugins = lastEnabledPlugins;
+    lastEnabledPlugins = (settings?.plugins?.enabled_plugins || []).slice().sort();
     setSettings(settings);
-    applySettingsToMainWebview();
     try {
       app.setLoginItemSettings({ openAtLogin: settings.general.launch_at_login });
     } catch {}
+    const theme = settings?.appearance?.theme || "system";
+    if (["light", "dark", "system"].includes(theme)) {
+      nativeTheme.themeSource = theme;
+    }
+    if (settings?.discord && discordClient) {
+      const { enabled, client_id } = settings.discord;
+      if (!enabled || !client_id || client_id.startsWith("REPLACE_") || !/^\d+$/.test(client_id)) {
+        try {
+          if (typeof discordClient.destroy === "function") discordClient.destroy();
+          else if (typeof discordClient.disconnect === "function") discordClient.disconnect();
+        } catch {}
+        discordClient = null;
+      }
+    }
     if (settingsWindow && !settingsWindow.isDestroyed()) {
       settingsWindow.webContents.send("settings-changed");
+    }
+    const pluginsChanged =
+      !prevPlugins ||
+      prevPlugins.length !== lastEnabledPlugins.length ||
+      prevPlugins.some((p, i) => p !== lastEnabledPlugins[i]);
+    if (pluginsChanged && mainWindow && !mainWindow.isDestroyed()) {
+      const url = mainWindow.webContents.getURL();
+      if (url && url.includes("music.youtube.com")) {
+        mainWindow.webContents.reload();
+      }
+    } else {
+      applySettingsToMainWebview();
     }
   });
   ipcMain.handle("list-plugins", () => scanPlugins());

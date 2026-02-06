@@ -1,7 +1,7 @@
 {
-    "name": "Multi-Source Synced Lyrics",
-    "version": "1.1.0",
-    "description": "Choice of YT or Lrclib synced lyrics with auto-scroll.",
-    "main": "index.js",
-    "permissions": []
-  }
+  "name": "Multi-Source Synced Lyrics",
+  "version": "2.0.0",
+  "description": "NetEase Cloud (default), LRCLIB fallback, and YouTube lyrics with karaoke-style sync and source selector.",
+  "main": "index.js",
+  "permissions": []
+}

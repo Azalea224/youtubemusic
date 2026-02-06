@@ -1,0 +1,7 @@
+{
+  "name": "Multi-Source Lyrics (Closed Captions)",
+  "version": "1.0.0",
+  "description": "Closed-caption style lyrics overlay. NetEase Cloud + LRCLIB. Fixed at bottom of screen.",
+  "main": "index.js",
+  "permissions": []
+}

@@ -89,6 +89,10 @@ jobs:
           path: artifacts
       - name: Display structure of downloaded artifacts
         run: ls -R artifacts/
+      - name: Remove unwanted Windows artifacts
+        run: |
+          rm -rf artifacts/*/win-unpacked
+          find artifacts -name 'elevate.exe' -delete
       - uses: softprops/action-gh-release@v2
         with:
           # Use the tag name from the push event

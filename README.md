@@ -1,6 +1,6 @@
 # YouTube Music Desktop Client
 
-A desktop app for [YouTube Music](https://music.youtube.com) on Windows, Linux, and macOS. Listen with a native window, system tray, Discord status, and optional plugins.
+A desktop app for [YouTube Music](https://music.youtube.com) on Windows, Linux, and macOS. Listen with a native window, system tray, synced lyrics, Discord status, and optional plugins.
 
 ## Download
 
@@ -15,8 +15,9 @@ Get the latest release from [GitHub Releases](https://github.com/Azalea224/youtu
 ## Features
 
 - **YouTube Music** – Full YouTube Music experience in a desktop window
+- **Lyrics** – Synced lyrics overlay (closed-caption style) from NetEase Cloud, LRCLIB, or YouTube
 - **Discord Rich Presence** – Show what you’re listening to on Discord
-- **Plugins** – Add extra features via plugins (e.g. fine volume control)
+- **Plugins** – Add extra features via plugins (e.g. fine volume control, lyrics)
 - **Settings** – General, Appearance, Playback, Discord, Plugins, and more
 - **System Tray** – Minimize to tray; open from the tray icon
 - **Portable** – AppImage on Linux, portable exe on Windows
@@ -34,6 +35,16 @@ If the shortcut doesn’t work (e.g. conflicts with another app), use the menu o
 1. Go to [Discord Developer Portal](https://discord.com/developers/applications) and create an application
 2. Copy the **Application ID**
 3. In the app: Settings → Discord → paste the ID
+
+## Lyrics
+
+The app includes a **Multi-Source Lyrics (Closed Captions)** plugin that shows synced lyrics at the bottom of the screen. It fetches lyrics from:
+
+- **NetEase Cloud** (primary)
+- **LRCLIB** (fallback)
+- **YouTube** (integrated captions)
+
+Choose your source in the CC dropdown, or use **Auto** to try them in order. Lyrics appear automatically when you play a track. Use the **Hide** / **Show** button to toggle the overlay.
 
 ## Plugins
 
