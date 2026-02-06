@@ -1,9 +1,13 @@
-name: Release
+name: Build and Publish Release
 
 on:
   push:
     tags:
       - "v*"
+
+# Grant write permissions globally so all jobs can interact with Releases
+permissions:
+  contents: write
 
 jobs:
   release-linux-amd64:
@@ -15,10 +19,10 @@ jobs:
           node-version: "20"
           cache: "npm"
       - run: npm ci
-      - run: npm run electron:build -- --linux
+      # -c.publish=never stops electron-builder from trying to upload itself
+      - run: npm run electron:build -- --linux -c.publish=never
         env:
           CI: true
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/upload-artifact@v4
         with:
           name: linux-amd64
@@ -33,11 +37,9 @@ jobs:
           node-version: "20"
           cache: "npm"
       - run: npm ci
-      # AppImage only - deb has fpm/arm64 compatibility issues in CI
-      - run: npm run electron:build -- --linux AppImage --arm64
+      - run: npm run electron:build -- --linux AppImage --arm64 -c.publish=never
         env:
           CI: true
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/upload-artifact@v4
         with:
           name: linux-arm64
@@ -52,10 +54,9 @@ jobs:
           node-version: "20"
           cache: "npm"
       - run: npm ci
-      - run: npm run electron:build -- --win
+      - run: npm run electron:build -- --win -c.publish=never
         env:
           CI: true
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/upload-artifact@v4
         with:
           name: windows
@@ -70,11 +71,9 @@ jobs:
           node-version: "20"
           cache: "npm"
       - run: npm ci
-      - run: npm run electron:build -- --mac
+      - run: npm run electron:build -- --mac -c.publish=never
         env:
           CI: true
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Skip code signing in CI (no certs configured)
           CSC_IDENTITY_AUTO_DISCOVERY: false
       - uses: actions/upload-artifact@v4
         with:
@@ -84,19 +83,22 @@ jobs:
   publish-release:
     needs: [release-linux-amd64, release-linux-arm64, release-windows, release-macos]
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Display structure of downloaded artifacts
+        run: ls -R artifacts/
       - uses: softprops/action-gh-release@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # Use the tag name from the push event
           tag_name: ${{ github.ref_name }}
           generate_release_notes: true
+          # This glob pattern looks into each artifact subfolder for build files
           files: |
-            linux-amd64/*
-            linux-arm64/*
-            windows/*
-            macos/*
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            artifacts/**/*.AppImage
+            artifacts/**/*.deb
+            artifacts/**/*.exe
+            artifacts/**/*.dmg
+            artifacts/**/*.zip

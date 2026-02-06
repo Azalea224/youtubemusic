@@ -13,19 +13,19 @@
     "electron:build": "npm run build && electron-builder"
   },
   "dependencies": {
+    "discord-rich-presence": "^0.0.8",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "discord-rich-presence": "^0.0.8"
+    "react-dom": "^19.1.0"
   },
   "devDependencies": {
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
+    "concurrently": "^9.1.0",
+    "electron": "^40.2.1",
+    "electron-builder": "^26.7.0",
     "typescript": "~5.8.3",
     "vite": "^7.0.4",
-    "electron": "^33.2.0",
-    "electron-builder": "^25.1.8",
-    "concurrently": "^9.1.0",
     "wait-on": "^8.0.1"
   },
   "build": {
