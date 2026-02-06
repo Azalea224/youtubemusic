@@ -63,7 +63,7 @@ Or, for a built-in default: set `DEFAULT_CLIENT_ID` in `electron/main.cjs` to yo
 
 ## Accessing Settings
 
-- **Keyboard shortcut**: `Ctrl+Shift+S` (Windows/Linux) or `Cmd+Shift+S` (macOS)
+- **Keyboard shortcut**: `Ctrl+Shift+S` (Windows/Linux) or `Cmd+Shift+S` (macOS); if it conflicts with system shortcuts, try `Ctrl+Alt+S` or use **File → Settings** in the menu bar
 - **Tray**: Right-click the system tray icon, then "Settings"
 
 ## Plugins

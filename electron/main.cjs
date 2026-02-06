@@ -12,8 +12,24 @@ const DEFAULT_CLIENT_ID = "";
 // Explicit app name for WM_CLASS matching (Linux/COSMIC/GNOME taskbar, Alt+Tab)
 app.name = "YouTube Music";
 
+// Windows: set AppUserModelID before any windows are created (fixes taskbar icon)
+if (process.platform === "win32") {
+  app.setAppUserModelId("com.youtube-music.client");
+}
+
+// Linux Wayland: enable global shortcuts portal (required for globalShortcut to work)
+if (process.platform === "linux") {
+  app.commandLine.appendSwitch("enable-features", "GlobalShortcutsPortal");
+}
+
 function getIconPath() {
-  return path.join(__dirname, "..", "public", "icon.png");
+  const base = path.join(__dirname, "..");
+  // Windows taskbar prefers .ico; use it when available
+  if (process.platform === "win32") {
+    const icoPath = path.join(base, "build", "icons", "icon.ico");
+    if (fs.existsSync(icoPath)) return icoPath;
+  }
+  return path.join(base, "public", "icon.png");
 }
 
 function getStorePath() {
@@ -400,7 +416,18 @@ function createMainWindow() {
     mainWindow = null;
   });
 
-  Menu.setApplicationMenu(null);
+  // Minimal menu with Settings (fallback when global shortcut conflicts on some platforms)
+  const appMenu = Menu.buildFromTemplate([
+    {
+      label: process.platform === "darwin" ? "YouTube Music" : "File",
+      submenu: [
+        { label: "Settings", accelerator: process.platform === "darwin" ? "Command+Shift+S" : "Ctrl+Shift+S", click: () => showSettings() },
+        { type: "separator" },
+        { label: process.platform === "darwin" ? "Quit" : "Exit", role: "quit" },
+      ],
+    },
+  ]);
+  Menu.setApplicationMenu(appMenu);
 }
 
 function createSettingsWindow() {
@@ -477,10 +504,21 @@ app.whenReady().then(() => {
     app.setLoginItemSettings({ openAtLogin: s.general.launch_at_login });
   } catch {}
 
-  globalShortcut.register(
-    process.platform === "darwin" ? "Command+Shift+S" : "Ctrl+Shift+S",
-    () => showSettings()
-  );
+  // Register settings shortcut; use fallback if primary conflicts with system (e.g. Linux screenshot tools)
+  const shortcuts =
+    process.platform === "darwin"
+      ? ["Command+Shift+S", "Command+Alt+S"]
+      : ["Ctrl+Shift+S", "Ctrl+Alt+S"];
+  let registered = false;
+  for (const accel of shortcuts) {
+    if (globalShortcut.register(accel, () => showSettings())) {
+      registered = true;
+      break;
+    }
+  }
+  if (!registered) {
+    console.warn("[YTM] Could not register settings shortcut; use tray menu or Settings in app menu.");
+  }
 
   ipcMain.handle("get-settings", () => getSettings());
   ipcMain.handle("set-settings", (_, settings) => {
