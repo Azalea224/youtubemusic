@@ -9,6 +9,13 @@ const createDiscordRPC = require("discord-rich-presence");
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 const DEFAULT_CLIENT_ID = "";
 
+// Explicit app name for WM_CLASS matching (Linux/COSMIC/GNOME taskbar, Alt+Tab)
+app.name = "YouTube Music";
+
+function getIconPath() {
+  return path.join(__dirname, "..", "public", "icon.png");
+}
+
 function getStorePath() {
   return path.join(app.getPath("userData"), "settings.json");
 }
@@ -354,7 +361,7 @@ function createMainWindow() {
     height: 800,
     minWidth: 400,
     minHeight: 300,
-    icon: path.join(__dirname, "..", "public", "icon.png"),
+    icon: getIconPath(),
     webPreferences: {
       preload: path.join(__dirname, "preload-ytm.cjs"),
       contextIsolation: true,
@@ -409,7 +416,7 @@ function createSettingsWindow() {
     height: 550,
     show: false,
     backgroundColor: "#0a0a0a",
-    icon: path.join(__dirname, "..", "public", "icon.png"),
+    icon: getIconPath(),
     webPreferences: {
       preload: path.join(__dirname, "preload-settings.cjs"),
       contextIsolation: true,
@@ -445,8 +452,7 @@ function showSettings() {
 }
 
 function createTray() {
-  const iconPath = path.join(__dirname, "..", "public", "icon.png");
-  tray = new Tray(iconPath);
+  tray = new Tray(getIconPath());
   tray.setToolTip("YouTube Music - Left-click for menu");
   const contextMenu = Menu.buildFromTemplate([
     { label: "Show", click: () => mainWindow?.show() },
