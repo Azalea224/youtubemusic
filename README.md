@@ -1,79 +1,43 @@
 # YouTube Music Desktop Client
 
-A multi-platform (Windows, Linux, macOS) YouTube Music desktop client built with Electron. Features plugin support, comprehensive settings, native Discord Rich Presence, and portable packaging (AppImage, NSIS, DMG).
+A desktop app for [YouTube Music](https://music.youtube.com) on Windows, Linux, and macOS. Listen with a native window, system tray, Discord status, and optional plugins.
 
-## Precompiled Builds
+## Download
 
-Precompiled builds are published to [GitHub Releases](https://github.com/azalea224/youtubemusic/releases) on each version tag. Download the appropriate package for your platform:
+Get the latest release from [GitHub Releases](https://github.com/Azalea224/youtubemusic/releases). Pick the file for your system:
 
-| Platform | Format |
-|----------|--------|
-| **Linux** (x64) | `.AppImage`, `.deb` |
-| **Linux** (ARM64) | `.AppImage`, `.deb` |
-| **Windows** | `.exe` (installer), portable |
-| **macOS** | `.dmg`, `.zip` |
-
-To create a new release, push a version tag (e.g. `v0.1.0`). The CI will build for all platforms and attach the artifacts to the release.
+| Platform | File |
+|----------|------|
+| **Windows** | `.exe` installer or portable `.exe` |
+| **macOS** | `.dmg` or `.zip` |
+| **Linux** | `.AppImage` or `.deb` |
 
 ## Features
 
-- **YouTube Music** – Full web app embedded in a native window
-- **Discord Rich Presence** – Show what you're listening to on Discord
-- **Plugin System** – Extend functionality with user-installed plugins
-- **Verbose Settings** – General, Appearance, Playback, Discord, Plugins, Advanced
-- **System Tray** – Minimize to tray, quick access from menu
-- **Portable** – AppImage (Linux), portable ZIP (Windows), .app (macOS)
+- **YouTube Music** – Full YouTube Music experience in a desktop window
+- **Discord Rich Presence** – Show what you’re listening to on Discord
+- **Plugins** – Add extra features via plugins (e.g. fine volume control)
+- **Settings** – General, Appearance, Playback, Discord, Plugins, and more
+- **System Tray** – Minimize to tray; open from the tray icon
+- **Portable** – AppImage on Linux, portable exe on Windows
 
-## Prerequisites
+## Opening Settings
 
-- [Node.js](https://nodejs.org/) (v20+)
+- **Shortcut**: `Ctrl+Shift+S` (Windows/Linux) or `Cmd+Shift+S` (macOS)
+- **Menu**: File → Settings
+- **Tray**: Right‑click the tray icon → Settings
 
-## Development
-
-```bash
-npm install
-npm run electron:dev
-```
-
-This runs the Vite dev server and Electron. For debugging the main YouTube Music window, set `YTM_DEBUG=1`:
-
-```bash
-YTM_DEBUG=1 npm run electron:dev
-```
-
-## Build
-
-```bash
-npm run electron:build
-```
-
-Outputs are in `release/`:
-- **Linux**: `.AppImage`, `.deb`
-- **Windows**: `.exe`, portable
-- **macOS**: `.dmg`, `.zip`
+If the shortcut doesn’t work (e.g. conflicts with another app), use the menu or tray.
 
 ## Discord Rich Presence
 
-Enable in Settings > Discord. To use it, add your Discord Application ID:
-1. Create an application at [Discord Developer Portal](https://discord.com/developers/applications)
-2. Copy the Application ID
-3. Paste it in Settings > Discord > Client ID
-
-Or, for a built-in default: set `DEFAULT_CLIENT_ID` in `electron/main.cjs` to your app's ID.
-
-## Accessing Settings
-
-- **Keyboard shortcut**: `Ctrl+Shift+S` (Windows/Linux) or `Cmd+Shift+S` (macOS); if it conflicts with system shortcuts, try `Ctrl+Alt+S` or use **File → Settings** in the menu bar
-- **Tray**: Right-click the system tray icon, then "Settings"
+1. Go to [Discord Developer Portal](https://discord.com/developers/applications) and create an application
+2. Copy the **Application ID**
+3. In the app: Settings → Discord → paste the ID
 
 ## Plugins
 
-Plugins are loaded from the app data `plugins/` directory (e.g. `~/.config/youtube-music-client/plugins/` on Linux). Each plugin needs:
-
-- `manifest.json` – `{ "name", "version", "main", "permissions" }`
-- `index.js` – Plugin entry point
-
-Enable or disable plugins in Settings > Plugins. See `plugins/example/` for a reference.
+Plugins are managed in **Settings → Plugins**. Enable or disable them there. New plugins go in the app’s plugins folder (shown in Settings → Plugins).
 
 ## License
 
