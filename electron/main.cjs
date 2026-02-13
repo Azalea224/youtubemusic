@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, Tray, ipcMain, globalShortcut, nativeTheme } = require("electron");
+const { app, BrowserWindow, Menu, Tray, ipcMain, globalShortcut, nativeTheme, session } = require("electron");
 
 // Force dark mode for settings window and native UI
 nativeTheme.themeSource = "dark";
@@ -500,7 +500,24 @@ function createTray() {
   tray.on("click", () => mainWindow?.show());
 }
 
-app.whenReady().then(() => {
+async function initAdblocker() {
+  try {
+    const { ElectronBlocker } = await import("@ghostery/adblocker-electron");
+    const enginePath = path.join(getAppDataDir(), "adblocker-engine.bin");
+    const blocker = await ElectronBlocker.fromPrebuiltAdsAndTracking(fetch, {
+        path: enginePath,
+        read: (p) => fs.promises.readFile(p),
+        write: (p, data) => fs.promises.writeFile(p, data),
+      }
+    );
+    blocker.enableBlockingInSession(session.defaultSession);
+  } catch (err) {
+    console.warn("[YTM] Adblocker failed to load:", err?.message || err);
+  }
+}
+
+app.whenReady().then(async () => {
+  await initAdblocker();
   ensureDefaultPlugins();
   createMainWindow();
   createTray();
