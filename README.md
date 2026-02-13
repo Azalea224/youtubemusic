@@ -55,6 +55,11 @@ Choose your source in the CC dropdown, or use **Auto** to try them in order. Lyr
 
 Plugins are managed in **Settings → Plugins**. Enable or disable them there. New plugins go in the app’s plugins folder (shown in Settings → Plugins).
 
+## Screenshots
+
+<img width="1200" height="800" alt="image" src="https://github.com/user-attachments/assets/aab337b9-8373-450e-86e7-7a7b21783a1a" />
+
+
 ## License
 
 MIT
