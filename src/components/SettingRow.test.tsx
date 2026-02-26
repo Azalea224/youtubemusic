@@ -166,7 +166,7 @@ describe("SettingColor", () => {
       <SettingColor label="Accent text colour" value="#b0b0b0" onChange={onChange} />
     );
     expect(screen.getByLabelText("Accent text colour")).toBeInTheDocument();
-    const inputs = screen.getAllByDisplayValue("#1a73e8");
+    const inputs = screen.getAllByDisplayValue("#b0b0b0");
     expect(inputs).toHaveLength(2);
   });
 
