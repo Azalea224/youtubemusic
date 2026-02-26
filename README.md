@@ -12,10 +12,12 @@ Get the latest release from [GitHub Releases](https://github.com/Azalea224/youtu
 | **macOS** | `.dmg` or `.zip` |
 | **Linux** | `.AppImage` or `.deb` |
 
+On Linux, the app detects a Wayland session (`XDG_SESSION_TYPE=wayland`) and uses native Wayland when available; global shortcuts work via the GlobalShortcuts portal.
+
 ## Features
 
 - **YouTube Music** – Full YouTube Music experience in a desktop window
-- **Ad blocking** – Built-in request blocking (ads and tracking) via filter lists, uBlock/EasyList–compatible
+- **Ad handling** – When an ad is playing, the app does not update Discord or broadcast playback (ad is not shown in status)
 - **Lyrics** – Synced lyrics overlay (closed-caption style) from NetEase Cloud, LRCLIB, or YouTube
 - **Discord Rich Presence** – Show what you’re listening to on Discord
 - **Plugins** – Add extra features via plugins (e.g. fine volume control, lyrics)
@@ -37,9 +39,9 @@ If the shortcut doesn’t work (e.g. conflicts with another app), use the menu o
 2. Copy the **Application ID**
 3. In the app: Settings → Discord → paste the ID
 
-## Ad blocking
+## Ad handling
 
-The app blocks ads and tracking by default using [@ghostery/adblocker-electron](https://www.npmjs.com/package/@ghostery/adblocker-electron) with prebuilt filter lists (EasyList-style). The compiled engine is cached on disk after the first run for faster startup. No configuration needed.
+When YouTube Music plays an ad, the app detects it (e.g. title "Advertisement") and does not update Discord Rich Presence or broadcast playback state. Your status continues to show the last real track; the ad is not reflected in the tray or elsewhere. Ads still play in the browser; this is behavioral handling only (no request blocking).
 
 ## Lyrics
 

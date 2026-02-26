@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, Tray, ipcMain, globalShortcut, nativeTheme, session } = require("electron");
+const { app, BrowserWindow, Menu, Tray, ipcMain, globalShortcut, nativeTheme } = require("electron");
 
 // Force dark mode for settings window and native UI
 nativeTheme.themeSource = "dark";
@@ -8,6 +8,8 @@ const createDiscordRPC = require("discord-rich-presence");
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 const DEFAULT_CLIENT_ID = "";
+/** Delay (ms) before quitting to allow Discord RPC to disconnect. */
+const DISCORD_QUIT_DELAY_MS = 150;
 
 // Explicit app name for WM_CLASS matching (Linux/COSMIC/GNOME taskbar, Alt+Tab)
 app.name = "YouTube Music";
@@ -17,9 +19,14 @@ if (process.platform === "win32") {
   app.setAppUserModelId("com.youtube-music.client");
 }
 
-// Linux Wayland: enable global shortcuts portal (required for globalShortcut to work)
+// Linux: Wayland and global shortcuts
 if (process.platform === "linux") {
-  app.commandLine.appendSwitch("enable-features", "GlobalShortcutsPortal");
+  const features = ["GlobalShortcutsPortal"];
+  if (process.env.XDG_SESSION_TYPE === "wayland") {
+    features.push("UseOzonePlatform", "WaylandWindowDecorations");
+    app.commandLine.appendSwitch("ozone-platform", "wayland");
+  }
+  app.commandLine.appendSwitch("enable-features", features.join(","));
 }
 
 function getIconPath() {
@@ -131,8 +138,13 @@ function getPluginsSourceDir() {
   return path.join(__dirname, "..", "plugins");
 }
 
+/** Returns true if client_id is valid for Discord Rich Presence. */
+function isValidDiscordClient(clientId) {
+  const cid = clientId || DEFAULT_CLIENT_ID;
+  return !!cid && !cid.startsWith("REPLACE_") && /^\d+$/.test(cid);
+}
+
 function ensureDefaultPlugins() {
-  const fs = require("fs");
   const pluginsDest = getPluginsDir();
   const pluginsSource = getPluginsSourceDir();
   if (!fs.existsSync(pluginsSource)) return;
@@ -160,7 +172,6 @@ function ensureDefaultPlugins() {
 }
 
 function copyDirSync(src, dst) {
-  const fs = require("fs");
   fs.mkdirSync(dst, { recursive: true });
   for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
     const srcPath = path.join(src, entry.name);
@@ -180,7 +191,6 @@ function getEnabledPlugins() {
 }
 
 function getPluginInjectionScript() {
-  const fs = require("fs");
   const pluginsDir = getPluginsDir();
   const enabled = getEnabledPlugins();
   const scripts = [];
@@ -218,7 +228,12 @@ function getPluginInjectionScript() {
 }
 
 function reportPlaybackState(state) {
-  if (!state || (!state.title && !state.artist)) return;
+  if (!state || typeof state !== "object") return;
+  // When an ad is playing, don't update tray/Discord or broadcast playback (Option 3: behavioral ad handling)
+  if (state.isAdvertisement) {
+    return;
+  }
+  if (!state.title && !state.artist) return;
   lastPlaybackState = state;
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send("playback-update", state);
@@ -227,58 +242,13 @@ function reportPlaybackState(state) {
 }
 
 function makePollInjectOnceScript() {
-  return `
-(function(){
-  if(window.__ytmPollInjected)return;
-  window.__ytmPollInjected=true;
-  function scrapeAndReport(){
-    try{
-      if(document.visibilityState==='hidden')return;
-      if(!window.ytm||typeof window.ytm.reportPlayback!=='function')return;
-      function q(root,sel){
-        if(!root)return null;
-        var sr=root.shadowRoot||root._shadowRoot;
-        if(sr){var r=sr.querySelector(sel);if(r)return r;}
-        if(root.__shady_native_querySelector)return root.__shady_native_querySelector(sel);
-        return root.querySelector(sel);
-      }
-      var bar=document.querySelector('ytmusic-player-bar');
-      if(!bar)return;
-      var t=q(bar,'.title.ytmusic-player-bar')||q(bar,'.title');
-      var s=q(bar,'.ytmusic-player-bar.subtitle')||q(bar,'.subtitle');
-      if(!s){var sr=bar.shadowRoot||bar._shadowRoot;if(sr){var links=sr.querySelectorAll('.subtitle a[href*="channel/"]');if(links&&links[0])s=links[0];}}
-      var p=q(bar,'#play-pause-button')||q(bar,'.play-pause-button');
-      var title=t?t.textContent.trim():'';
-      var artist=s?s.textContent.trim():'';
-      var state='paused';
-      if(p){var l=(p.getAttribute('aria-label')||'').toLowerCase();state=l.indexOf('pause')>=0?'playing':'paused';}
-      var prog=0,dur=0;
-      var te=q(bar,'.time-info')||q(bar,'.time');
-      if(te){
-        var txt=te.textContent||'0:00 / 0:00';
-        var pts=txt.split('/').map(function(x){return x.trim();});
-        if(pts.length>=2){
-          function parse(str){var parts=str.split(':').map(Number).reverse(),sec=0;for(var i=0;i<parts.length;i++)sec+=(parts[i]||0)*Math.pow(60,i);return sec;}
-          prog=parse(pts[0]);dur=parse(pts[1]);
-        }
-      }
-      if(title||artist){
-        window.ytm.reportPlayback({title:title,artist:artist,album:'',state:state,progress:prog,duration:dur});
-      }
-    }catch(e){}
+  const scriptPath = path.join(__dirname, "scripts", "playback-poll.js");
+  try {
+    return fs.readFileSync(scriptPath, "utf8");
+  } catch (err) {
+    console.warn("[YTM] Playback poll script not found:", scriptPath, err?.message);
+    return "";
   }
-  function tick(){
-    if(document.visibilityState==='hidden')return;
-    if(window.requestIdleCallback){
-      requestIdleCallback(scrapeAndReport,{timeout:3000});
-    }else{
-      setTimeout(scrapeAndReport,50);
-    }
-  }
-  tick();
-  setInterval(tick,15000);
-})();
-`;
 }
 
 function injectPlaybackPollIfEnabled() {
@@ -322,16 +292,8 @@ function updateDiscordPresence(playback) {
   if (!playback || (!playback.title && !playback.artist)) return;
   const s = getSettings();
   const { enabled, hide_listening, client_id } = s.discord;
+  if (!enabled || hide_listening || !isValidDiscordClient(client_id)) return;
   const cid = client_id || DEFAULT_CLIENT_ID;
-  if (
-    !enabled ||
-    hide_listening ||
-    !cid ||
-    cid.startsWith("REPLACE_") ||
-    !/^\d+$/.test(cid)
-  ) {
-    return;
-  }
   try {
     if (!discordClient) {
       discordClient = createDiscordRPC(cid);
@@ -352,7 +314,6 @@ function updateDiscordPresence(playback) {
 }
 
 function scanPlugins() {
-  const fs = require("fs");
   const pluginsDir = getPluginsDir();
   fs.mkdirSync(pluginsDir, { recursive: true });
   const result = [];
@@ -500,24 +461,7 @@ function createTray() {
   tray.on("click", () => mainWindow?.show());
 }
 
-async function initAdblocker() {
-  try {
-    const { ElectronBlocker } = await import("@ghostery/adblocker-electron");
-    const enginePath = path.join(getAppDataDir(), "adblocker-engine.bin");
-    const blocker = await ElectronBlocker.fromPrebuiltAdsAndTracking(fetch, {
-        path: enginePath,
-        read: (p) => fs.promises.readFile(p),
-        write: (p, data) => fs.promises.writeFile(p, data),
-      }
-    );
-    blocker.enableBlockingInSession(session.defaultSession);
-  } catch (err) {
-    console.warn("[YTM] Adblocker failed to load:", err?.message || err);
-  }
-}
-
-app.whenReady().then(async () => {
-  await initAdblocker();
+app.whenReady().then(() => {
   ensureDefaultPlugins();
   createMainWindow();
   createTray();
@@ -564,7 +508,7 @@ app.whenReady().then(async () => {
     }
     if (settings?.discord && discordClient) {
       const { enabled, client_id } = settings.discord;
-      if (!enabled || !client_id || client_id.startsWith("REPLACE_") || !/^\d+$/.test(client_id)) {
+      if (!enabled || !isValidDiscordClient(client_id)) {
         try {
           if (typeof discordClient.destroy === "function") discordClient.destroy();
           else if (typeof discordClient.disconnect === "function") discordClient.disconnect();
@@ -591,7 +535,7 @@ app.whenReady().then(async () => {
   ipcMain.handle("list-plugins", () => scanPlugins());
   ipcMain.handle("debug-plugins", () => ({
     app_data_dir: getAppDataDir(),
-    plugins_dir_exists: require("fs").existsSync(getPluginsDir()),
+    plugins_dir_exists: fs.existsSync(getPluginsDir()),
     enabled_plugins: getEnabledPlugins(),
     script_length: getPluginInjectionScript().length,
     script_preview:
@@ -637,7 +581,7 @@ app.on("before-quit", (e) => {
       mainWindow = null;
       settingsWindow = null;
       app.quit();
-    }, 150);
+    }, DISCORD_QUIT_DELAY_MS);
     return;
   }
 

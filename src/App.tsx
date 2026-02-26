@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { AppSettings } from "./types";
 import {
   GeneralSettings,
@@ -19,9 +19,55 @@ const TABS = [
   { id: "advanced", label: "Advanced" },
 ] as const;
 
+type TabId = (typeof TABS)[number]["id"];
+
+interface TabPanelProps {
+  settings: AppSettings;
+  updateSettings: (updater: (s: AppSettings) => AppSettings) => void;
+}
+
+const TAB_PANELS: Record<TabId, (props: TabPanelProps) => ReactNode> = {
+  general: ({ settings, updateSettings }) => (
+    <GeneralSettings
+      settings={settings.general}
+      onChange={(g) => updateSettings((s) => ({ ...s, general: g }))}
+    />
+  ),
+  appearance: ({ settings, updateSettings }) => (
+    <AppearanceSettings
+      settings={settings.appearance}
+      onChange={(a) => updateSettings((s) => ({ ...s, appearance: a }))}
+    />
+  ),
+  playback: ({ settings, updateSettings }) => (
+    <PlaybackSettings
+      settings={settings.playback}
+      onChange={(p) => updateSettings((s) => ({ ...s, playback: p }))}
+    />
+  ),
+  discord: ({ settings, updateSettings }) => (
+    <DiscordSettings
+      settings={settings.discord}
+      onChange={(d) => updateSettings((s) => ({ ...s, discord: d }))}
+    />
+  ),
+  plugins: ({ settings, updateSettings }) => (
+    <PluginSettings
+      settings={settings.plugins}
+      onChange={(p) => updateSettings((s) => ({ ...s, plugins: p }))}
+    />
+  ),
+  advanced: ({ settings, updateSettings }) => (
+    <AdvancedSettings
+      settings={settings.advanced}
+      onChange={(a) => updateSettings((s) => ({ ...s, advanced: a }))}
+    />
+  ),
+};
+
 function App() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
-  const [activeTab, setActiveTab] = useState<(typeof TABS)[number]["id"]>("general");
+  const [activeTab, setActiveTab] = useState<TabId>("general");
 
   useEffect(() => {
     window.electronAPI?.getSettings().then(setSettings).catch(console.error);
@@ -38,20 +84,21 @@ function App() {
 
   const updateSettings = (updater: (s: AppSettings) => AppSettings) => {
     if (!settings) return;
-    const next = updater(settings);
-    saveSettings(next);
+    saveSettings(updater(settings));
   };
 
   if (!settings) {
     return (
-      <div className="settings-loading" style={{ background: "#0a0a0a", color: "#fff" }}>
+      <div className="settings-loading">
         <p>Loading settings...</p>
       </div>
     );
   }
 
+  const Panel = TAB_PANELS[activeTab];
+
   return (
-    <div className="settings-app" style={{ background: "#0a0a0a" }}>
+    <div className="settings-app">
       <nav className="settings-sidebar">
         {TABS.map(({ id, label }) => (
           <button
@@ -65,42 +112,7 @@ function App() {
         ))}
       </nav>
       <main className="settings-content">
-        {activeTab === "general" && (
-          <GeneralSettings
-            settings={settings.general}
-            onChange={(g) => updateSettings((s) => ({ ...s, general: g }))}
-          />
-        )}
-        {activeTab === "appearance" && (
-          <AppearanceSettings
-            settings={settings.appearance}
-            onChange={(a) => updateSettings((s) => ({ ...s, appearance: a }))}
-          />
-        )}
-        {activeTab === "playback" && (
-          <PlaybackSettings
-            settings={settings.playback}
-            onChange={(p) => updateSettings((s) => ({ ...s, playback: p }))}
-          />
-        )}
-        {activeTab === "discord" && (
-          <DiscordSettings
-            settings={settings.discord}
-            onChange={(d) => updateSettings((s) => ({ ...s, discord: d }))}
-          />
-        )}
-        {activeTab === "plugins" && (
-          <PluginSettings
-            settings={settings.plugins}
-            onChange={(p) => updateSettings((s) => ({ ...s, plugins: p }))}
-          />
-        )}
-        {activeTab === "advanced" && (
-          <AdvancedSettings
-            settings={settings.advanced}
-            onChange={(a) => updateSettings((s) => ({ ...s, advanced: a }))}
-          />
-        )}
+        <Panel settings={settings} updateSettings={updateSettings} />
       </main>
     </div>
   );
