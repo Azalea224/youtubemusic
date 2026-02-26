@@ -7,7 +7,7 @@ import type { AppearanceSettings as AppearanceSettingsType } from "../../types";
 
 const defaultSettings: AppearanceSettingsType = {
   theme: "system",
-  accent_color: "#1a73e8",
+  accent_color: "#b0b0b0",
   font_size: "medium",
   compact_mode: false,
 };
@@ -37,7 +37,7 @@ describe("AppearanceSettings", () => {
     render(<AppearanceSettings settings={defaultSettings} onChange={onChange} />);
     expect(screen.getByRole("heading", { name: "Appearance" })).toBeInTheDocument();
     expect(screen.getByLabelText("Theme")).toBeInTheDocument();
-    expect(screen.getByLabelText("Accent color")).toBeInTheDocument();
+    expect(screen.getByLabelText("Accent text colour")).toBeInTheDocument();
     expect(screen.getByLabelText("Font size")).toBeInTheDocument();
     expect(screen.getByLabelText("Compact mode")).toBeInTheDocument();
   });

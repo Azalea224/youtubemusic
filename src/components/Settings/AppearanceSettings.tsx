@@ -29,7 +29,7 @@ export function AppearanceSettings({ settings, onChange }: Props) {
         onChange={(v) => onChange({ ...settings, theme: v })}
       />
       <SettingColor
-        label="Accent color"
+        label="Accent text colour"
         value={settings.accent_color}
         onChange={(v) => onChange({ ...settings, accent_color: v })}
       />

@@ -21,7 +21,7 @@ function ControlledColorWrapper({
   const [value, setValue] = useState(initialValue);
   return (
     <SettingColor
-      label="Accent color"
+      label="Accent text colour"
       value={value}
       onChange={(v) => {
         setValue(v);
@@ -163,9 +163,9 @@ describe("SettingColor", () => {
   it("renders label and color/text inputs", () => {
     const onChange = vi.fn();
     render(
-      <SettingColor label="Accent color" value="#1a73e8" onChange={onChange} />
+      <SettingColor label="Accent text colour" value="#b0b0b0" onChange={onChange} />
     );
-    expect(screen.getByLabelText("Accent color")).toBeInTheDocument();
+    expect(screen.getByLabelText("Accent text colour")).toBeInTheDocument();
     const inputs = screen.getAllByDisplayValue("#1a73e8");
     expect(inputs).toHaveLength(2);
   });

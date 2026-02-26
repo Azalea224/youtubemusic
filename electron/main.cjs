@@ -1,11 +1,17 @@
-const { app, BrowserWindow, Menu, Tray, ipcMain, globalShortcut, nativeTheme, session } = require("electron");
+const { app, BrowserWindow, Menu, Tray, ipcMain, globalShortcut, nativeTheme, session, WebContentsView } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const createDiscordRPC = require("discord-rich-presence");
 const { ElectronBlocker } = require("@ghostery/adblocker-electron");
 const fetch = require("cross-fetch");
 
-nativeTheme.themeSource = "dark";
+const TITLEBAR_HEIGHT_NORMAL = 40;
+const TITLEBAR_HEIGHT_COMPACT = 28;
+
+function getTitlebarHeight() {
+  const s = getSettings();
+  return s.appearance.compact_mode ? TITLEBAR_HEIGHT_COMPACT : TITLEBAR_HEIGHT_NORMAL;
+}
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 const DEFAULT_CLIENT_ID = "";
@@ -58,10 +64,19 @@ function saveStore(obj) {
 }
 
 let mainWindow = null;
+let titlebarView = null;
+let contentView = null;
 let settingsWindow = null;
 let tray = null;
 let discordClient = null;
 let lastPlaybackState = null;
+
+/** WebContents for the YTM page (content view). Use for injection and playback. */
+function getContentWebContents() {
+  return contentView && contentView.webContents && !contentView.webContents.isDestroyed()
+    ? contentView.webContents
+    : null;
+}
 
 function getAppDataDir() {
   return app.getPath("userData");
@@ -91,7 +106,7 @@ function getSettings() {
     },
     appearance: {
       theme: "system",
-      accent_color: "#ff0000",
+      accent_color: "#b0b0b0",
       font_size: "medium",
       compact_mode: false,
     },
@@ -240,15 +255,11 @@ function getPluginInjectionScript() {
 
 function reportPlaybackState(state) {
   if (!state || typeof state !== "object") return;
-  // When an ad is playing, don't update tray/Discord or broadcast playback (Option 3: behavioral ad handling)
-  if (state.isAdvertisement) {
-    return;
-  }
+  if (state.isAdvertisement) return;
   if (!state.title && !state.artist) return;
   lastPlaybackState = state;
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send("playback-update", state);
-  }
+  const wc = getContentWebContents();
+  if (wc && !wc.isDestroyed()) wc.send("playback-update", state);
   updateDiscordPresence(state);
 }
 
@@ -267,40 +278,72 @@ function makePollInjectOnceScript() {
 }
 
 function injectPlaybackPollIfEnabled() {
-  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const wc = getContentWebContents();
+  if (!wc || wc.isDestroyed()) return;
   const script = makePollInjectOnceScript();
-  mainWindow.webContents.executeJavaScript(script).catch(() => {});
+  wc.executeJavaScript(script).catch(() => {});
+}
+
+function buildAppearanceCss() {
+  const s = getSettings();
+  const a = s.appearance || {};
+  const accent = (a.accent_color || "#b0b0b0").trim();
+  const theme = (a.theme || "system").toLowerCase();
+  const fontScale = { small: "13px", medium: "14px", large: "16px" }[a.font_size || "medium"] || "14px";
+  const lines = [];
+  lines.push("/* YTM appearance (accent, font-size, compact) */");
+  lines.push(":root { --ytm-accent: " + accent + "; --ytm-font-size: " + fontScale + "; }");
+  lines.push("html { font-size: " + fontScale + " !important; }");
+  lines.push(
+    "a, [href], ytmusic-nav-bar .nav-bar-content a[active], .ytmusic-player-bar progress, [primary], .yt-spec-button-shape-next--filled { color: " +
+      accent +
+      " !important; }"
+  );
+  lines.push(
+    "ytmusic-nav-bar .nav-bar-content a[active] { border-bottom-color: " + accent + " !important; }"
+  );
+  if (a.compact_mode) {
+    lines.push("ytmusic-app-layout, #content { padding: 4px !important; }");
+    lines.push("ytmusic-nav-bar { min-width: 48px !important; }");
+  }
+  if (theme === "light" || theme === "dark") {
+    lines.push(
+      "html { color-scheme: " +
+        theme +
+        " !important; }"
+    );
+  }
+  return lines.join("\n");
 }
 
 function applySettingsToMainWebview() {
-  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const wc = getContentWebContents();
+  if (!wc || wc.isDestroyed()) return;
   const pluginScript = getPluginInjectionScript();
   if (pluginScript) {
-    mainWindow.webContents.executeJavaScript(pluginScript).catch((err) => {
+    wc.executeJavaScript(pluginScript).catch((err) => {
       console.error("[YTM] Plugin injection failed:", err);
     });
   }
   injectPlaybackPollIfEnabled();
   const s = getSettings();
-  const customCss = s.advanced.custom_css || "";
-  const customJs = s.advanced.custom_js || "";
-  if (customCss) {
-    const escaped = JSON.stringify(customCss);
-    mainWindow.webContents
-      .executeJavaScript(
-        "(function(){ var el = document.getElementById('ytm-custom-css'); if (el) el.remove(); if (!document.head) return; el = document.createElement('style'); el.id = 'ytm-custom-css'; el.textContent = " + escaped + "; document.head.appendChild(el); })();"
-      )
-      .catch(() => {});
+  const appearanceCss = buildAppearanceCss();
+  const customCss = (s.advanced.custom_css || "").trim();
+  const fullCss = (appearanceCss ? appearanceCss + "\n\n" : "") + customCss;
+  if (fullCss) {
+    const escaped = JSON.stringify(fullCss);
+    wc.executeJavaScript(
+      "(function(){ var el = document.getElementById('ytm-custom-css'); if (el) el.remove(); if (!document.head) return; el = document.createElement('style'); el.id = 'ytm-custom-css'; el.textContent = " +
+        escaped +
+        "; document.head.appendChild(el); })();"
+    ).catch(() => {});
   } else {
-    mainWindow.webContents
-      .executeJavaScript(
-        "(function(){ var el=document.getElementById('ytm-custom-css'); if(el)el.remove(); })();"
-      )
-      .catch(() => {});
+    wc.executeJavaScript(
+      "(function(){ var el=document.getElementById('ytm-custom-css'); if(el)el.remove(); })();"
+    ).catch(() => {});
   }
-  if (customJs) {
-    mainWindow.webContents.executeJavaScript(customJs).catch(() => {});
-  }
+  const customJs = s.advanced.custom_js || "";
+  if (customJs) wc.executeJavaScript(customJs).catch(() => {});
 }
 
 function updateDiscordPresence(playback) {
@@ -346,14 +389,52 @@ function scanPlugins() {
   return result;
 }
 
+function getTitlebarUrl() {
+  const s = getSettings();
+  const params = new URLSearchParams({
+    theme: s.appearance.theme || "system",
+    accent: s.appearance.accent_color || "#b0b0b0",
+    font: s.appearance.font_size || "medium",
+    compact: String(!!s.appearance.compact_mode),
+  });
+  const titlebarPath = path.join(__dirname, "titlebar.html");
+  return "file://" + titlebarPath.replace(/\\/g, "/") + "?" + params.toString();
+}
+
+function layoutViews() {
+  if (!mainWindow || mainWindow.isDestroyed() || !titlebarView || !contentView) return;
+  const h = getTitlebarHeight();
+  const [w, height] = mainWindow.getSize();
+  titlebarView.setBounds({ x: 0, y: 0, width: w, height: h });
+  contentView.setBounds({ x: 0, y: h, width: w, height: Math.max(0, height - h) });
+}
+
 function createMainWindow() {
-  mainWindow = new BrowserWindow({
+  const winOpts = {
     title: "YouTube Music",
     width: 1200,
     height: 800,
     minWidth: 400,
     minHeight: 300,
     icon: getIconPath(),
+    titleBarStyle: "hidden",
+    ...(process.platform !== "darwin" ? { titleBarOverlay: true } : {}),
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+    },
+  };
+  mainWindow = new BrowserWindow(winOpts);
+
+  titlebarView = new WebContentsView({
+    webPreferences: {
+      preload: path.join(__dirname, "preload-titlebar.cjs"),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  contentView = new WebContentsView({
     webPreferences: {
       preload: path.join(__dirname, "preload-ytm.cjs"),
       contextIsolation: true,
@@ -361,24 +442,36 @@ function createMainWindow() {
       sandbox: false,
     },
   });
+  mainWindow.contentView.addChildView(contentView);
+  mainWindow.contentView.addChildView(titlebarView);
+  titlebarView.webContents.loadURL(getTitlebarUrl());
+  titlebarView.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  contentView.webContents.loadURL("https://music.youtube.com");
+  contentView.webContents.setWindowOpenHandler(({ url }) => {
+    if (url && url.startsWith("https://music.youtube.com")) {
+      contentView.webContents.loadURL(url);
+      return { action: "deny" };
+    }
+    return { action: "allow" };
+  });
 
-  mainWindow.loadURL("https://music.youtube.com");
-
-  mainWindow.webContents.on("did-finish-load", () => {
-    const url = mainWindow.webContents.getURL();
+  contentView.webContents.on("did-finish-load", () => {
+    const url = contentView.webContents.getURL();
     if (url && url.includes("music.youtube.com")) {
       applySettingsToMainWebview();
     }
   });
 
+  layoutViews();
+  mainWindow.on("resize", layoutViews);
+
   if (isDev && process.env.YTM_DEBUG) {
-    mainWindow.webContents.openDevTools();
+    contentView.webContents.openDevTools();
   }
 
   mainWindow.on("close", (e) => {
     const s = getSettings();
     if (s.general.minimize_to_tray && !app.isQuitting) {
-      // If window is already hidden, user is trying to quit from taskbar/dock - actually quit
       if (mainWindow && !mainWindow.isVisible()) {
         app.quit();
         return;
@@ -390,6 +483,8 @@ function createMainWindow() {
 
   mainWindow.on("closed", () => {
     mainWindow = null;
+    titlebarView = null;
+    contentView = null;
   });
 
   // Minimal menu with Settings and DevTools (fallback when global shortcut conflicts on some platforms)
@@ -409,7 +504,7 @@ function createMainWindow() {
     {
       label: "View",
       submenu: [
-        { label: "Toggle Developer Tools", accelerator: process.platform === "darwin" ? "Command+Option+I" : "Ctrl+Shift+I", click: () => mainWindow?.webContents?.toggleDevTools() },
+        { label: "Toggle Developer Tools", accelerator: process.platform === "darwin" ? "Command+Option+I" : "Ctrl+Shift+I", click: () => getContentWebContents()?.toggleDevTools() },
       ],
     },
   ]);
@@ -436,6 +531,7 @@ function createSettingsWindow() {
       nodeIntegration: false,
     },
   });
+  settingsWindow.setMenuBarVisibility(false);
 
   const indexUrl = isDev
     ? "http://localhost:1420/index.html"
@@ -479,10 +575,12 @@ function createTray() {
 app.whenReady().then(async () => {
   await enableAdblocker();
   ensureDefaultPlugins();
+  const s = getSettings();
+  const theme = s.appearance?.theme || "system";
+  if (["light", "dark", "system"].includes(theme)) nativeTheme.themeSource = theme;
   createMainWindow();
   createTray();
 
-  const s = getSettings();
   if (s.general.start_minimized) {
     mainWindow?.hide();
   }
@@ -535,15 +633,18 @@ app.whenReady().then(async () => {
     if (settingsWindow && !settingsWindow.isDestroyed()) {
       settingsWindow.webContents.send("settings-changed");
     }
+    if (titlebarView && titlebarView.webContents && !titlebarView.webContents.isDestroyed()) {
+      titlebarView.webContents.loadURL(getTitlebarUrl());
+    }
+    layoutViews();
     const pluginsChanged =
       !prevPlugins ||
       prevPlugins.length !== lastEnabledPlugins.length ||
       prevPlugins.some((p, i) => p !== lastEnabledPlugins[i]);
-    if (pluginsChanged && mainWindow && !mainWindow.isDestroyed()) {
-      const url = mainWindow.webContents.getURL();
-      if (url && url.includes("music.youtube.com")) {
-        mainWindow.webContents.reload();
-      }
+    const wc = getContentWebContents();
+    if (pluginsChanged && wc && !wc.isDestroyed()) {
+      const url = wc.getURL();
+      if (url && url.includes("music.youtube.com")) wc.reload();
     } else {
       applySettingsToMainWebview();
     }
@@ -563,6 +664,19 @@ app.whenReady().then(async () => {
     if (state && typeof state === "object") reportPlaybackState(state);
   });
   ipcMain.on("open-settings", () => showSettings());
+  ipcMain.handle("titlebar-show-app-menu", (_, which, x, y) => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    const menu = Menu.getApplicationMenu();
+    if (!menu || !menu.items) return;
+    const item = menu.items.find(
+      (m) => m.submenu && (which === "file" ? (m.label === "File" || m.label === "YouTube Music") : m.label === "View")
+    );
+    if (!item || !item.submenu) return;
+    const bounds = mainWindow.getBounds();
+    const screenX = bounds.x + (typeof x === "number" ? x : 0);
+    const screenY = bounds.y + (typeof y === "number" ? y : getTitlebarHeight());
+    item.submenu.popup({ window: mainWindow, x: Math.round(screenX), y: Math.round(screenY) });
+  });
 });
 
 app.on("window-all-closed", () => {

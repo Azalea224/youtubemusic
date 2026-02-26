@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YouTube Music</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; font-family: system-ui, -apple-system, sans-serif; user-select: none; -webkit-app-region: drag; }
+    .titlebar {
+      display: flex;
+      align-items: center;
+      height: 100%;
+      padding-left: 12px;
+      padding-right: 12px;
+    }
+    .titlebar-icon { width: 20px; height: 20px; margin-right: 8px; -webkit-app-region: no-drag; }
+    .titlebar-title { font-size: 13px; font-weight: 500; opacity: 0.95; margin-right: 12px; }
+    .titlebar.titlebar-compact .titlebar-title { font-size: 12px; }
+    .titlebar.titlebar-compact .titlebar-icon { width: 16px; height: 16px; margin-right: 6px; }
+    .titlebar-menus { display: flex; flex-shrink: 0; -webkit-app-region: no-drag; }
+    .titlebar-menu {
+      -webkit-app-region: no-drag;
+      padding: 4px 10px;
+      margin: 0 2px;
+      font-size: 13px;
+      font-family: inherit;
+      background: transparent;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      color: inherit;
+      opacity: 0.95;
+    }
+    .titlebar-menu:hover { background: rgba(128,128,128,0.3); opacity: 1; }
+    .titlebar.titlebar-compact .titlebar-menu { padding: 2px 8px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="titlebar" id="tb">
+    <img class="titlebar-icon" src="../public/icon.png" alt="" onerror="this.style.display='none'" />
+    <span class="titlebar-title">YouTube Music</span>
+    <div class="titlebar-menus">
+      <button type="button" class="titlebar-menu" id="menu-file">File</button>
+      <button type="button" class="titlebar-menu" id="menu-view">View</button>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      var theme = (params.get("theme") || "system").toLowerCase();
+      var accent = params.get("accent") || "#1a73e8";
+      var font = params.get("font") || "medium";
+      var compact = params.get("compact") === "true";
+      var root = document.documentElement;
+      var body = document.body;
+      var tb = document.getElementById("tb");
+      if (compact) tb.classList.add("titlebar-compact");
+      var isDark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+      if (isDark) {
+        root.style.background = "#1f1f1f";
+        body.style.background = "#1f1f1f";
+        body.style.color = "#e8e8e8";
+      } else {
+        root.style.background = "#f5f5f5";
+        body.style.background = "#f5f5f5";
+        body.style.color = "#1f1f1f";
+      }
+      root.style.setProperty("--accent", accent);
+      var size = font === "small" ? "12px" : font === "large" ? "14px" : "13px";
+      body.style.fontSize = size;
+
+      function showMenu(which) {
+        return function(evt) {
+          evt.preventDefault();
+          evt.stopPropagation();
+          if (window.titlebarAPI && typeof window.titlebarAPI.showAppMenu === "function") {
+            var rect = evt.currentTarget.getBoundingClientRect();
+            window.titlebarAPI.showAppMenu(which, rect.left + rect.width / 2, rect.bottom);
+          }
+        };
+      }
+      var fileBtn = document.getElementById("menu-file");
+      var viewBtn = document.getElementById("menu-view");
+      if (fileBtn) fileBtn.addEventListener("click", showMenu("file"), true);
+      if (viewBtn) viewBtn.addEventListener("click", showMenu("view"), true);
+    })();
+  </script>
+</body>
+</html>

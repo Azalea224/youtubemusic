@@ -11,7 +11,7 @@ export function GeneralSettings({ settings, onChange }: Props) {
     <section className="settings-section">
       <h2>General</h2>
       <p className="setting-hint">
-        <strong>Tip:</strong> Press <kbd>Ctrl+Shift+S</kbd> (<kbd>Cmd+Shift+S</kbd> on Mac) to open Settings, or use <strong>File → Settings</strong> in the menu bar.
+        <strong>Tip:</strong> Press <kbd>Ctrl+Shift+S</kbd> (<kbd>Cmd+Shift+S</kbd> on Mac) to open Settings.
       </p>
       <SettingCheckbox
         label="Start minimized"

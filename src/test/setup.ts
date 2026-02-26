@@ -10,7 +10,7 @@ const defaultSettings: AppSettings = {
   },
   appearance: {
     theme: "system",
-    accent_color: "#1a73e8",
+    accent_color: "#b0b0b0",
     font_size: "medium",
     compact_mode: false,
   },
