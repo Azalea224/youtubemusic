@@ -8,7 +8,7 @@ const defaultSettings: GeneralSettingsType = {
   start_minimized: false,
   minimize_to_tray: true,
   launch_at_login: false,
-  language: "en",
+  language: "en-GB",
 };
 
 describe("GeneralSettings", () => {

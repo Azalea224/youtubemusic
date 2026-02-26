@@ -33,7 +33,7 @@ describe("App", () => {
     expect(screen.getByText("Loading settings...")).toBeInTheDocument();
 
     const fullSettings: AppSettings = {
-      general: { start_minimized: false, minimize_to_tray: true, launch_at_login: false, language: "en" },
+      general: { start_minimized: false, minimize_to_tray: true, launch_at_login: false, language: "en-GB" },
       appearance: { theme: "system", accent_color: "#1a73e8", font_size: "medium", compact_mode: false },
       playback: { default_quality: "auto", crossfade: false, gapless: true, repeat_default: "none", shuffle_default: false },
       discord: { enabled: false, client_id: "", show_buttons: true, hide_listening: false },

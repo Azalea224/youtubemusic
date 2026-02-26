@@ -10,11 +10,15 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:electron": "node electron/scripts/playback-ad.test.cjs",
+    "test:all": "npm run test:run && npm run test:electron",
     "electron": "electron .",
     "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:1420 && electron .\"",
     "electron:build": "npm run build && node scripts/copy-icon.cjs && electron-builder"
   },
   "dependencies": {
+    "@ghostery/adblocker-electron": "^2.14.1",
+    "cross-fetch": "^4.1.0",
     "discord-rich-presence": "^0.0.8",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
@@ -29,12 +33,12 @@
     "concurrently": "^9.1.0",
     "electron": "^40.2.1",
     "electron-builder": "^26.7.0",
+    "jsdom": "^25.0.1",
     "sharp": "^0.34.5",
     "typescript": "~5.8.3",
     "vite": "^7.0.4",
     "vitest": "^2.1.6",
-    "wait-on": "^8.0.1",
-    "jsdom": "^25.0.1"
+    "wait-on": "^8.0.1"
   },
   "build": {
     "appId": "com.youtube-music.client",
@@ -44,17 +48,26 @@
     },
     "linux": {
       "icon": "build/icons",
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "category": "Audio",
       "maintainer": "YouTube Music Client <noreply@example.com>"
     },
     "win": {
       "icon": "build/icon.png",
-      "target": ["nsis", "portable"]
+      "target": [
+        "nsis",
+        "portable"
+      ]
     },
     "mac": {
       "icon": "build/icon.png",
-      "target": ["dmg", "zip"],
+      "target": [
+        "dmg",
+        "zip"
+      ],
       "category": "public.app-category.music"
     },
     "files": [

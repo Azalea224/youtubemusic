@@ -6,7 +6,7 @@ const defaultSettings: AppSettings = {
     start_minimized: false,
     minimize_to_tray: true,
     launch_at_login: false,
-    language: "en",
+    language: "en-GB",
   },
   appearance: {
     theme: "system",

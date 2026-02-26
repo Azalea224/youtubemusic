@@ -1,10 +1,11 @@
-const { app, BrowserWindow, Menu, Tray, ipcMain, globalShortcut, nativeTheme } = require("electron");
-
-// Force dark mode for settings window and native UI
-nativeTheme.themeSource = "dark";
+const { app, BrowserWindow, Menu, Tray, ipcMain, globalShortcut, nativeTheme, session } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const createDiscordRPC = require("discord-rich-presence");
+const { ElectronBlocker } = require("@ghostery/adblocker-electron");
+const fetch = require("cross-fetch");
+
+nativeTheme.themeSource = "dark";
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 const DEFAULT_CLIENT_ID = "";
@@ -68,6 +69,16 @@ function getAppDataDir() {
 
 function getPluginsDir() {
   return path.join(getAppDataDir(), "plugins");
+}
+
+/** Enable network-level ad/tracking blocking on the default session. */
+async function enableAdblocker() {
+  try {
+    const blocker = await ElectronBlocker.fromPrebuiltAdsAndTracking(fetch);
+    blocker.enableBlockingInSession(session.defaultSession);
+  } catch (err) {
+    console.warn("[YTM] Adblocker failed to load:", err?.message || err);
+  }
 }
 
 function getSettings() {
@@ -242,11 +253,15 @@ function reportPlaybackState(state) {
 }
 
 function makePollInjectOnceScript() {
-  const scriptPath = path.join(__dirname, "scripts", "playback-poll.js");
+  const scriptsDir = path.join(__dirname, "scripts");
+  const pollPath = path.join(scriptsDir, "playback-poll.js");
   try {
-    return fs.readFileSync(scriptPath, "utf8");
+    const { isAdvertisement } = require(path.join(scriptsDir, "playback-ad.cjs"));
+    const adPrefix = "window.__ytmIsAd=" + isAdvertisement.toString() + ";\n";
+    const pollScript = fs.readFileSync(pollPath, "utf8");
+    return adPrefix + pollScript;
   } catch (err) {
-    console.warn("[YTM] Playback poll script not found:", scriptPath, err?.message);
+    console.warn("[YTM] Playback poll script not found:", pollPath, err?.message);
     return "";
   }
 }
@@ -461,7 +476,8 @@ function createTray() {
   tray.on("click", () => mainWindow?.show());
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  await enableAdblocker();
   ensureDefaultPlugins();
   createMainWindow();
   createTray();
