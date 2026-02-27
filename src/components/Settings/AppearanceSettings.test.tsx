@@ -4,13 +4,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AppearanceSettings } from "./AppearanceSettings";
 import type { AppearanceSettings as AppearanceSettingsType } from "../../types";
-
-const defaultSettings: AppearanceSettingsType = {
-  theme: "system",
-  accent_color: "#b0b0b0",
-  font_size: "medium",
-  compact_mode: false,
-};
+import { defaultSettings } from "../../test/setup";
 
 function ControlledAppearanceWrapper({
   initialSettings,
@@ -34,7 +28,7 @@ function ControlledAppearanceWrapper({
 describe("AppearanceSettings", () => {
   it("renders section heading and controls", () => {
     const onChange = vi.fn();
-    render(<AppearanceSettings settings={defaultSettings} onChange={onChange} />);
+    render(<AppearanceSettings settings={defaultSettings.appearance} onChange={onChange} />);
     expect(screen.getByRole("heading", { name: "Appearance" })).toBeInTheDocument();
     expect(screen.getByLabelText("Theme")).toBeInTheDocument();
     expect(screen.getByLabelText("Accent text colour")).toBeInTheDocument();
@@ -45,10 +39,10 @@ describe("AppearanceSettings", () => {
   it("calls onChange with updated theme when select changes", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
-    render(<AppearanceSettings settings={defaultSettings} onChange={onChange} />);
+    render(<AppearanceSettings settings={defaultSettings.appearance} onChange={onChange} />);
     await user.selectOptions(screen.getByLabelText("Theme"), "dark");
     expect(onChange).toHaveBeenCalledWith({
-      ...defaultSettings,
+      ...defaultSettings.appearance,
       theme: "dark",
     });
   });
@@ -58,7 +52,7 @@ describe("AppearanceSettings", () => {
     const onChange = vi.fn();
     render(
       <ControlledAppearanceWrapper
-        initialSettings={defaultSettings}
+        initialSettings={defaultSettings.appearance}
         onChange={onChange}
       />
     );
@@ -66,7 +60,7 @@ describe("AppearanceSettings", () => {
     await user.clear(colorTextInput);
     await user.type(colorTextInput, "#ff0000");
     expect(onChange).toHaveBeenLastCalledWith({
-      ...defaultSettings,
+      ...defaultSettings.appearance,
       accent_color: "#ff0000",
     });
   });
@@ -74,10 +68,10 @@ describe("AppearanceSettings", () => {
   it("calls onChange with updated font_size when select changes", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
-    render(<AppearanceSettings settings={defaultSettings} onChange={onChange} />);
+    render(<AppearanceSettings settings={defaultSettings.appearance} onChange={onChange} />);
     await user.selectOptions(screen.getByLabelText("Font size"), "large");
     expect(onChange).toHaveBeenCalledWith({
-      ...defaultSettings,
+      ...defaultSettings.appearance,
       font_size: "large",
     });
   });
@@ -85,10 +79,10 @@ describe("AppearanceSettings", () => {
   it("calls onChange with updated compact_mode when checkbox is toggled", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
-    render(<AppearanceSettings settings={defaultSettings} onChange={onChange} />);
+    render(<AppearanceSettings settings={defaultSettings.appearance} onChange={onChange} />);
     await user.click(screen.getByLabelText("Compact mode"));
     expect(onChange).toHaveBeenCalledWith({
-      ...defaultSettings,
+      ...defaultSettings.appearance,
       compact_mode: true,
     });
   });

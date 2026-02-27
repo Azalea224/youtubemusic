@@ -3,7 +3,6 @@ import type { AppSettings } from "./types";
 import {
   GeneralSettings,
   AppearanceSettings,
-  PlaybackSettings,
   DiscordSettings,
   PluginSettings,
   AdvancedSettings,
@@ -13,7 +12,6 @@ import "./App.css";
 const TABS = [
   { id: "general", label: "General" },
   { id: "appearance", label: "Appearance" },
-  { id: "playback", label: "Playback" },
   { id: "discord", label: "Discord" },
   { id: "plugins", label: "Plugins" },
   { id: "advanced", label: "Advanced" },
@@ -37,12 +35,6 @@ const TAB_PANELS: Record<TabId, (props: TabPanelProps) => ReactNode> = {
     <AppearanceSettings
       settings={settings.appearance}
       onChange={(a) => updateSettings((s) => ({ ...s, appearance: a }))}
-    />
-  ),
-  playback: ({ settings, updateSettings }) => (
-    <PlaybackSettings
-      settings={settings.playback}
-      onChange={(p) => updateSettings((s) => ({ ...s, playback: p }))}
     />
   ),
   discord: ({ settings, updateSettings }) => (

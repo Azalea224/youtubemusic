@@ -2,6 +2,7 @@ const { app, BrowserWindow, Menu, Tray, ipcMain, globalShortcut, nativeTheme, se
 const path = require("path");
 const fs = require("fs");
 const createDiscordRPC = require("discord-rich-presence");
+const WebSocket = require("ws");
 const { ElectronBlocker } = require("@ghostery/adblocker-electron");
 const fetch = require("cross-fetch");
 
@@ -14,7 +15,8 @@ function getTitlebarHeight() {
 }
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
-const DEFAULT_CLIENT_ID = "";
+/** Discord Application ID for Rich Presence (native Discord IPC and arRPC). */
+const BUILTIN_DISCORD_CLIENT_ID = "1477073382104371360";
 /** Delay (ms) before quitting to allow Discord RPC to disconnect. */
 const DISCORD_QUIT_DELAY_MS = 150;
 
@@ -69,7 +71,94 @@ let contentView = null;
 let settingsWindow = null;
 let tray = null;
 let discordClient = null;
+/** arRPC WebSocket (for Vencord / Discord Web). When set, we use arRPC instead of Discord IPC. */
+let arrpcWs = null;
+/** Interval handle for periodic arRPC presence refresh while playing. */
+let arrpcRefreshTimer = null;
+/** Whether we already warned that arRPC replied with dummy user (standalone, no Vesktop bridge). */
+let arrpcStandaloneWarned = false;
 let lastPlaybackState = null;
+
+/** arRPC listens on 6463–6472. Try connecting with Origin so arRPC accepts us. */
+const ARRPC_PORTS = [6463, 6464, 6465, 6466, 6467, 6468, 6469, 6470, 6471, 6472];
+
+const ARRPC_IPC_TIMEOUT_MS = 3500;
+
+/** Try connecting to arRPC/Discord via IPC (discord-ipc-0). Resolves with client on success, rejects on error or timeout. */
+function tryConnectArrpcViaIPC(clientId) {
+  return new Promise((resolve, reject) => {
+    const client = createDiscordRPC(clientId);
+    const timeout = setTimeout(() => {
+      try {
+        if (typeof client.destroy === "function") client.destroy();
+        else if (typeof client.disconnect === "function") client.disconnect();
+      } catch {}
+      reject(new Error("IPC timeout"));
+    }, ARRPC_IPC_TIMEOUT_MS);
+    client.once("connected", () => {
+      clearTimeout(timeout);
+      resolve(client);
+    });
+    client.once("error", () => {
+      clearTimeout(timeout);
+      try {
+        if (typeof client.destroy === "function") client.destroy();
+        else if (typeof client.disconnect === "function") client.disconnect();
+      } catch {}
+      reject(new Error("IPC error"));
+    });
+  });
+}
+
+function connectArrpc(clientId) {
+  return new Promise((resolve) => {
+    let tried = 0;
+    function tryPort() {
+      const port = ARRPC_PORTS[tried];
+      if (port == null) {
+        resolve(null);
+        return;
+      }
+      const url = `ws://127.0.0.1:${port}/?v=1&encoding=json&client_id=${clientId}`;
+      const ws = new WebSocket(url, {
+        origin: "https://discord.com",
+      });
+      const timeout = setTimeout(() => {
+        try {
+          ws.close();
+        } catch {}
+        tried++;
+        tryPort();
+      }, 2000);
+      ws.on("open", () => {
+        clearTimeout(timeout);
+        resolve(ws);
+      });
+      ws.on("error", () => {
+        clearTimeout(timeout);
+        tried++;
+        tryPort();
+      });
+      ws.on("close", () => {
+        clearTimeout(timeout);
+      });
+    }
+    tryPort();
+  });
+}
+
+function closeArrpc() {
+  if (arrpcRefreshTimer) {
+    clearInterval(arrpcRefreshTimer);
+    arrpcRefreshTimer = null;
+  }
+  if (arrpcWs) {
+    try {
+      arrpcWs.close();
+    } catch {}
+    arrpcWs = null;
+  }
+}
 
 /** WebContents for the YTM page (content view). Use for injection and playback. */
 function getContentWebContents() {
@@ -102,7 +191,6 @@ function getSettings() {
       start_minimized: false,
       minimize_to_tray: true,
       launch_at_login: false,
-      language: "en-GB",
     },
     appearance: {
       theme: "system",
@@ -110,26 +198,16 @@ function getSettings() {
       font_size: "medium",
       compact_mode: false,
     },
-    playback: {
-      default_quality: "auto",
-      crossfade: false,
-      gapless: true,
-      repeat_default: "none",
-      shuffle_default: false,
-    },
     discord: {
       enabled: true,
-      client_id: "1234567890123456789",
       show_buttons: true,
       hide_listening: false,
+      use_arrpc: false,
     },
     plugins: {
       enabled_plugins: [],
     },
     advanced: {
-      data_directory: "",
-      cache_size_mb: 500,
-      debug_mode: false,
       custom_css: "",
       custom_js: "",
     },
@@ -138,7 +216,6 @@ function getSettings() {
   const merged = {
     general: { ...defaults.general, ...store.general },
     appearance: { ...defaults.appearance, ...store.appearance },
-    playback: { ...defaults.playback, ...store.playback },
     discord: { ...defaults.discord, ...store.discord },
     plugins: { ...defaults.plugins, ...store.plugins },
     advanced: { ...defaults.advanced, ...store.advanced },
@@ -150,7 +227,6 @@ function setSettings(settings) {
   const store = loadStore();
   store.general = settings.general;
   store.appearance = settings.appearance;
-  store.playback = settings.playback;
   store.discord = settings.discord;
   store.plugins = settings.plugins;
   store.advanced = settings.advanced;
@@ -162,12 +238,6 @@ function getPluginsSourceDir() {
     return path.join(process.resourcesPath, "plugins");
   }
   return path.join(__dirname, "..", "plugins");
-}
-
-/** Returns true if client_id is valid for Discord Rich Presence. */
-function isValidDiscordClient(clientId) {
-  const cid = clientId || DEFAULT_CLIENT_ID;
-  return !!cid && !cid.startsWith("REPLACE_") && /^\d+$/.test(cid);
 }
 
 function ensureDefaultPlugins() {
@@ -346,29 +416,146 @@ function applySettingsToMainWebview() {
   if (customJs) wc.executeJavaScript(customJs).catch(() => {});
 }
 
-function updateDiscordPresence(playback) {
+async function updateDiscordPresence(playback) {
   if (!playback || (!playback.title && !playback.artist)) return;
   const s = getSettings();
-  const { enabled, hide_listening, client_id } = s.discord;
-  if (!enabled || hide_listening || !isValidDiscordClient(client_id)) return;
-  const cid = client_id || DEFAULT_CLIENT_ID;
+  const { enabled, hide_listening, use_arrpc, show_buttons } = s.discord;
+  if (!enabled || hide_listening) return;
+  const ytmButtons = show_buttons
+    ? [
+        { label: "Listen on YouTube Music", url: "https://music.youtube.com" },
+        { label: "YouTube Music", url: "https://music.youtube.com" },
+      ]
+    : null;
   try {
+    if (use_arrpc) {
+      const needConnection = !discordClient && (!arrpcWs || arrpcWs.readyState !== WebSocket.OPEN);
+      if (needConnection) {
+        closeArrpc();
+        try {
+          discordClient = await tryConnectArrpcViaIPC(BUILTIN_DISCORD_CLIENT_ID);
+          if (isDev) console.log("[Discord RPC] arRPC connected via IPC (discord-ipc-0)");
+          discordClient.on("error", () => {
+            discordClient = null;
+          });
+        } catch {
+          discordClient = null;
+          arrpcWs = await connectArrpc(BUILTIN_DISCORD_CLIENT_ID);
+          if (arrpcWs) {
+            if (isDev) console.log("[Discord RPC] arRPC connected via WebSocket (6463 fallback)");
+            arrpcWs.on("close", () => {
+              arrpcWs = null;
+              if (arrpcRefreshTimer) clearInterval(arrpcRefreshTimer);
+              arrpcRefreshTimer = null;
+            });
+            arrpcStandaloneWarned = false;
+            arrpcWs.on("message", (data) => {
+              if (isDev && data) console.log("[Discord RPC] arRPC reply:", String(data).slice(0, 200));
+              if (data && !arrpcStandaloneWarned) {
+                try {
+                  const msg = typeof data === "string" ? JSON.parse(data) : data;
+                  if (msg.cmd === "DISPATCH" && msg.evt === "READY" && msg.data?.user?.username === "arrpc") {
+                    arrpcStandaloneWarned = true;
+                    console.warn(
+                      "[Discord RPC] arRPC server is in standalone mode (no Discord client linked). " +
+                        "Enable the WebRichPresence (arRPC) plugin in Vesktop (Vencord → Plugins) and close any manual npx arrpc."
+                    );
+                  }
+                } catch {}
+              }
+            });
+          } else {
+            if (isDev) {
+              console.warn(
+                "[Discord RPC] arRPC: IPC and WebSocket (6463–6472) failed. Is the arRPC server running?"
+              );
+            }
+            return;
+          }
+        }
+      }
+      if (discordClient) {
+        const activity = {
+          type: 2,
+          name: "YouTube Music",
+          details: playback.title,
+          state: playback.artist,
+          largeImageKey: "ytm",
+          largeImageText: "YouTube Music",
+        };
+        if (ytmButtons) activity.buttons = ytmButtons;
+        if (playback.state === "playing" && playback.duration > 0) {
+          const now = Math.floor(Date.now() / 1000);
+          activity.startTimestamp = now;
+          activity.endTimestamp = now + (playback.duration - playback.progress);
+        }
+        discordClient.updatePresence(activity);
+        if (!arrpcRefreshTimer && playback.state === "playing") {
+          arrpcRefreshTimer = setInterval(() => {
+            if (!discordClient && !arrpcWs) return;
+            const s = getSettings();
+            if (!s.discord.enabled || s.discord.hide_listening || !s.discord.use_arrpc) return;
+            updateDiscordPresence(lastPlaybackState);
+          }, 25000);
+        }
+        return;
+      }
+      if (arrpcWs && arrpcWs.readyState === WebSocket.OPEN) {
+        const activity = {
+          type: 2,
+          name: "YouTube Music",
+          state: playback.artist,
+          details: playback.title,
+          assets: { large_image: "ytm", large_text: "YouTube Music" },
+        };
+        if (ytmButtons) activity.buttons = ytmButtons;
+        if (playback.state === "playing" && playback.duration > 0) {
+          const now = Math.floor(Date.now() / 1000);
+          activity.timestamps = {
+            start: now,
+            end: now + Math.max(0, Math.floor(playback.duration - playback.progress)),
+          };
+        }
+        arrpcWs.send(
+          JSON.stringify({
+            cmd: "SET_ACTIVITY",
+            nonce: String(Date.now()),
+            args: { pid: process.pid, activity },
+          })
+        );
+        if (isDev) console.log("[Discord RPC] arRPC SET_ACTIVITY sent (WS):", activity.details, "—", activity.state);
+        if (!arrpcRefreshTimer && playback.state === "playing") {
+          arrpcRefreshTimer = setInterval(() => {
+            if (!discordClient && (!arrpcWs || arrpcWs.readyState !== WebSocket.OPEN)) return;
+            const s = getSettings();
+            if (!s.discord.enabled || s.discord.hide_listening || !s.discord.use_arrpc) return;
+            updateDiscordPresence(lastPlaybackState);
+          }, 25000);
+        }
+      }
+      return;
+    }
     if (!discordClient) {
-      discordClient = createDiscordRPC(cid);
+      discordClient = createDiscordRPC(BUILTIN_DISCORD_CLIENT_ID);
     }
     const activity = {
+      type: 2,
+      name: "YouTube Music",
       details: playback.title,
       state: playback.artist,
       largeImageKey: "ytm",
       largeImageText: "YouTube Music",
     };
+    if (ytmButtons) activity.buttons = ytmButtons;
     if (playback.state === "playing" && playback.duration > 0) {
       const now = Math.floor(Date.now() / 1000);
       activity.startTimestamp = now;
       activity.endTimestamp = now + (playback.duration - playback.progress);
     }
     discordClient.updatePresence(activity);
-  } catch {}
+  } catch (err) {
+    // Discord RPC errors are non-fatal; presence will retry on next update
+  }
 }
 
 function scanPlugins() {
@@ -446,6 +633,7 @@ function createMainWindow() {
   mainWindow.contentView.addChildView(titlebarView);
   titlebarView.webContents.loadURL(getTitlebarUrl());
   titlebarView.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  contentView.webContents.setMaxListeners(20);
   contentView.webContents.loadURL("https://music.youtube.com");
   contentView.webContents.setWindowOpenHandler(({ url }) => {
     if (url && url.startsWith("https://music.youtube.com")) {
@@ -620,14 +808,33 @@ app.whenReady().then(async () => {
     if (["light", "dark", "system"].includes(theme)) {
       nativeTheme.themeSource = theme;
     }
-    if (settings?.discord && discordClient) {
-      const { enabled, client_id } = settings.discord;
-      if (!enabled || !isValidDiscordClient(client_id)) {
+    if (settings?.discord) {
+      const { enabled, use_arrpc } = settings.discord;
+      if (!enabled) {
         try {
-          if (typeof discordClient.destroy === "function") discordClient.destroy();
-          else if (typeof discordClient.disconnect === "function") discordClient.disconnect();
+          if (discordClient) {
+            if (typeof discordClient.destroy === "function") discordClient.destroy();
+            else if (typeof discordClient.disconnect === "function") discordClient.disconnect();
+          }
         } catch {}
         discordClient = null;
+        closeArrpc();
+      } else {
+        if (use_arrpc && discordClient) {
+          try {
+            if (typeof discordClient.destroy === "function") discordClient.destroy();
+            else if (typeof discordClient.disconnect === "function") discordClient.disconnect();
+          } catch {}
+          discordClient = null;
+        }
+        if (!use_arrpc && arrpcWs) closeArrpc();
+        if (!use_arrpc && discordClient) {
+          try {
+            if (typeof discordClient.destroy === "function") discordClient.destroy();
+            else if (typeof discordClient.disconnect === "function") discordClient.disconnect();
+          } catch {}
+          discordClient = null;
+        }
       }
     }
     if (settingsWindow && !settingsWindow.isDestroyed()) {
@@ -689,15 +896,17 @@ app.on("before-quit", (e) => {
   app.isQuitting = true;
   globalShortcut.unregisterAll();
 
-  if (discordClient) {
-    // Discord RPC disconnect is async (doesn't return Promise) - delay quit to allow cleanup
+  if (discordClient || arrpcWs) {
     e.preventDefault();
     const client = discordClient;
     discordClient = null;
     try {
-      if (typeof client.destroy === "function") client.destroy();
-      else if (typeof client.disconnect === "function") client.disconnect();
+      if (client) {
+        if (typeof client.destroy === "function") client.destroy();
+        else if (typeof client.disconnect === "function") client.disconnect();
+      }
     } catch {}
+    closeArrpc();
     // Give Discord IPC time to close before proceeding with quit
     setTimeout(() => {
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.destroy();

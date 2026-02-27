@@ -1,7 +1,6 @@
 export interface AppSettings {
   general: GeneralSettings;
   appearance: AppearanceSettings;
-  playback: PlaybackSettings;
   discord: DiscordSettings;
   plugins: PluginSettings;
   advanced: AdvancedSettings;
@@ -11,7 +10,6 @@ export interface GeneralSettings {
   start_minimized: boolean;
   minimize_to_tray: boolean;
   launch_at_login: boolean;
-  language: string;
 }
 
 export interface AppearanceSettings {
@@ -21,19 +19,12 @@ export interface AppearanceSettings {
   compact_mode: boolean;
 }
 
-export interface PlaybackSettings {
-  default_quality: string;
-  crossfade: boolean;
-  gapless: boolean;
-  repeat_default: string;
-  shuffle_default: boolean;
-}
-
 export interface DiscordSettings {
   enabled: boolean;
-  client_id: string;
   show_buttons: boolean;
   hide_listening: boolean;
+  /** Use arRPC WebSocket (for Vencord / Discord Web). When true, connects to arRPC instead of Discord IPC. */
+  use_arrpc?: boolean;
 }
 
 export interface PluginSettings {
@@ -41,9 +32,6 @@ export interface PluginSettings {
 }
 
 export interface AdvancedSettings {
-  data_directory: string;
-  cache_size_mb: number;
-  debug_mode: boolean;
   custom_css: string;
   custom_js: string;
 }

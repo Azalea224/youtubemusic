@@ -1,12 +1,12 @@
 import "@testing-library/jest-dom";
 import type { AppSettings } from "../types";
 
-const defaultSettings: AppSettings = {
+/** Shared default settings for tests. Import in tests to avoid duplication. */
+export const defaultSettings: AppSettings = {
   general: {
     start_minimized: false,
     minimize_to_tray: true,
     launch_at_login: false,
-    language: "en-GB",
   },
   appearance: {
     theme: "system",
@@ -14,26 +14,16 @@ const defaultSettings: AppSettings = {
     font_size: "medium",
     compact_mode: false,
   },
-  playback: {
-    default_quality: "auto",
-    crossfade: false,
-    gapless: true,
-    repeat_default: "none",
-    shuffle_default: false,
-  },
   discord: {
     enabled: false,
-    client_id: "",
     show_buttons: true,
     hide_listening: false,
+    use_arrpc: false,
   },
   plugins: {
     enabled_plugins: [],
   },
   advanced: {
-    data_directory: "",
-    cache_size_mb: 500,
-    debug_mode: false,
     custom_css: "",
     custom_js: "",
   },
@@ -41,20 +31,36 @@ const defaultSettings: AppSettings = {
 
 let lastSetSettings: AppSettings | null = null;
 
-(window as Window & { __electronAPIMock?: { getLastSetSettings: () => AppSettings | null } }).__electronAPIMock = {
+declare global {
+  interface Window {
+    __electronAPIMock?: { getLastSetSettings: () => AppSettings | null; resetLastSetSettings: () => void };
+  }
+}
+
+const createElectronAPI = (settings: AppSettings = defaultSettings) => ({
+  getSettings: () => Promise.resolve(settings),
+  setSettings: (s: AppSettings) => {
+    lastSetSettings = s;
+    return Promise.resolve();
+  },
+  listPlugins: () => Promise.resolve([]),
+  debugPlugins: () => Promise.resolve({}),
+});
+
+window.__electronAPIMock = {
   getLastSetSettings: () => lastSetSettings,
+  resetLastSetSettings: () => {
+    lastSetSettings = null;
+  },
 };
 
 Object.defineProperty(window, "electronAPI", {
-  value: {
-    getSettings: () => Promise.resolve(defaultSettings),
-    setSettings: (settings: AppSettings) => {
-      lastSetSettings = settings;
-      return Promise.resolve();
-    },
-    listPlugins: () => Promise.resolve([]),
-    debugPlugins: () => Promise.resolve({}),
-  },
+  value: createElectronAPI(),
   writable: true,
   configurable: true,
 });
+
+/** Restore the default electronAPI mock. Use in beforeEach when tests override it. */
+export function resetElectronAPIMock(settings: AppSettings = defaultSettings) {
+  (window as Window & { electronAPI: typeof window.electronAPI }).electronAPI = createElectronAPI(settings);
+}
