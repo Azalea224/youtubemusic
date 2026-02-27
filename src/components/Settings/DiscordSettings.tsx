@@ -1,15 +1,15 @@
-import type { DiscordSettings as DiscordSettingsType } from "../../types";
+import type { DiscordSettings } from "../../types";
 import { SettingCheckbox } from "../SettingRow";
+import { SettingsSection } from "./SettingsSection";
 
-interface Props {
-  settings: DiscordSettingsType;
-  onChange: (s: DiscordSettingsType) => void;
+interface DiscordSettingsProps {
+  settings: DiscordSettings;
+  onChange: (s: DiscordSettings) => void;
 }
 
-export function DiscordSettings({ settings, onChange }: Props) {
+export function DiscordSettings({ settings, onChange }: DiscordSettingsProps) {
   return (
-    <section className="settings-section">
-      <h2>Discord Rich Presence</h2>
+    <SettingsSection title="Discord Rich Presence">
       <SettingCheckbox
         label="Enable Discord Rich Presence"
         checked={settings.enabled}
@@ -43,6 +43,6 @@ export function DiscordSettings({ settings, onChange }: Props) {
           Connects via <strong>IPC</strong> (discord-ipc-0) first, then WebSocket (6463) if needed. In Vesktop enable the <strong>WebRichPresence (arRPC)</strong> plugin (Vencord → Plugins). Close any manual <code>npx arrpc</code> and the official Discord app to avoid conflicts.
         </p>
       )}
-    </section>
+    </SettingsSection>
   );
 }

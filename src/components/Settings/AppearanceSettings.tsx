@@ -1,9 +1,10 @@
-import type { AppearanceSettings as AppearanceSettingsType } from "../../types";
+import type { AppearanceSettings } from "../../types";
 import { SettingCheckbox, SettingSelect, SettingColor } from "../SettingRow";
+import { SettingsSection } from "./SettingsSection";
 
-interface Props {
-  settings: AppearanceSettingsType;
-  onChange: (s: AppearanceSettingsType) => void;
+interface AppearanceSettingsProps {
+  settings: AppearanceSettings;
+  onChange: (s: AppearanceSettings) => void;
 }
 
 const THEME_OPTIONS = [
@@ -18,10 +19,9 @@ const FONT_SIZE_OPTIONS = [
   { value: "large", label: "Large" },
 ];
 
-export function AppearanceSettings({ settings, onChange }: Props) {
+export function AppearanceSettings({ settings, onChange }: AppearanceSettingsProps) {
   return (
-    <section className="settings-section">
-      <h2>Appearance</h2>
+    <SettingsSection title="Appearance">
       <SettingSelect
         label="Theme"
         value={settings.theme}
@@ -44,6 +44,6 @@ export function AppearanceSettings({ settings, onChange }: Props) {
         checked={settings.compact_mode}
         onChange={(v) => onChange({ ...settings, compact_mode: v })}
       />
-    </section>
+    </SettingsSection>
   );
 }

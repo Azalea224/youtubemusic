@@ -1,15 +1,15 @@
-import type { GeneralSettings as GeneralSettingsType } from "../../types";
+import type { GeneralSettings } from "../../types";
 import { SettingCheckbox } from "../SettingRow";
+import { SettingsSection } from "./SettingsSection";
 
-interface Props {
-  settings: GeneralSettingsType;
-  onChange: (s: GeneralSettingsType) => void;
+interface GeneralSettingsProps {
+  settings: GeneralSettings;
+  onChange: (s: GeneralSettings) => void;
 }
 
-export function GeneralSettings({ settings, onChange }: Props) {
+export function GeneralSettings({ settings, onChange }: GeneralSettingsProps) {
   return (
-    <section className="settings-section">
-      <h2>General</h2>
+    <SettingsSection title="General">
       <p className="setting-hint">
         <strong>Tip:</strong> Press <kbd>Ctrl+Shift+S</kbd> (<kbd>Cmd+Shift+S</kbd> on Mac) to open Settings.
       </p>
@@ -29,6 +29,6 @@ export function GeneralSettings({ settings, onChange }: Props) {
         onChange={(v) => onChange({ ...settings, launch_at_login: v })}
         hint="(Restart required)"
       />
-    </section>
+    </SettingsSection>
   );
 }

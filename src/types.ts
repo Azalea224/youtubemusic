@@ -35,3 +35,12 @@ export interface AdvancedSettings {
   custom_css: string;
   custom_js: string;
 }
+
+/** Plugin manifest (manifest.json). Used by settings UI and electron. */
+export interface PluginManifest {
+  name: string;
+  version: string;
+  description?: string;
+  main: string;
+  permissions: string[];
+}

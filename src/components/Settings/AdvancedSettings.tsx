@@ -1,15 +1,15 @@
-import type { AdvancedSettings as AdvancedSettingsType } from "../../types";
+import type { AdvancedSettings } from "../../types";
 import { SettingTextarea } from "../SettingRow";
+import { SettingsSection } from "./SettingsSection";
 
-interface Props {
-  settings: AdvancedSettingsType;
-  onChange: (s: AdvancedSettingsType) => void;
+interface AdvancedSettingsProps {
+  settings: AdvancedSettings;
+  onChange: (s: AdvancedSettings) => void;
 }
 
-export function AdvancedSettings({ settings, onChange }: Props) {
+export function AdvancedSettings({ settings, onChange }: AdvancedSettingsProps) {
   return (
-    <section className="settings-section">
-      <h2>Advanced</h2>
+    <SettingsSection title="Advanced">
       <SettingTextarea
         label="Custom CSS injection"
         value={settings.custom_css}
@@ -24,6 +24,6 @@ export function AdvancedSettings({ settings, onChange }: Props) {
         placeholder="Optional JavaScript to inject (use with caution)"
         rows={4}
       />
-    </section>
+    </SettingsSection>
   );
 }

@@ -1,20 +1,13 @@
 import { useEffect, useState } from "react";
-import type { PluginSettings as PluginSettingsType } from "../../types";
+import type { PluginManifest, PluginSettings } from "../../types";
+import { SettingsSection } from "./SettingsSection";
 
-interface PluginManifest {
-  name: string;
-  version: string;
-  description?: string;
-  main: string;
-  permissions: string[];
+interface PluginSettingsProps {
+  settings: PluginSettings;
+  onChange: (s: PluginSettings) => void;
 }
 
-interface Props {
-  settings: PluginSettingsType;
-  onChange: (s: PluginSettingsType) => void;
-}
-
-export function PluginSettings({ settings, onChange }: Props) {
+export function PluginSettings({ settings, onChange }: PluginSettingsProps) {
   const [installedPlugins, setInstalledPlugins] = useState<[string, PluginManifest][]>([]);
   const [debugInfo, setDebugInfo] = useState<string | null>(null);
 
@@ -34,8 +27,7 @@ export function PluginSettings({ settings, onChange }: Props) {
   const isEnabled = (id: string) => settings.enabled_plugins.includes(id);
 
   return (
-    <section className="settings-section">
-      <h2>Plugins</h2>
+    <SettingsSection title="Plugins">
       <p className="setting-hint">
         Plugins extend the app with custom functionality. Place plugin folders (with manifest.json)
         in your app data plugins directory.
@@ -84,6 +76,6 @@ export function PluginSettings({ settings, onChange }: Props) {
           ))}
         </ul>
       )}
-    </section>
+    </SettingsSection>
   );
 }
