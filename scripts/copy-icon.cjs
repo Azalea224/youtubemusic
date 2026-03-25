@@ -14,7 +14,7 @@ async function main() {
   fs.mkdirSync(buildDir, { recursive: true });
   fs.mkdirSync(iconsDir, { recursive: true });
 
-  // Copy main icon for electron-builder (win/mac)
+  // Copy main icon for electron-builder (win)
   fs.copyFileSync(src, path.join(buildDir, "icon.png"));
 
   // Generate Linux icon set for reliable display in app menu, taskbar, Alt+Tab

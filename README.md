@@ -1,6 +1,6 @@
 # YouTube Music Desktop Client
 
-A desktop app for [YouTube Music](https://music.youtube.com) on Windows, Linux, and macOS. Listen with a native window, system tray, synced lyrics, Discord status, and optional plugins.
+A desktop app for [YouTube Music](https://music.youtube.com) on Windows (portable) and Linux. Listen with a native window, system tray, synced lyrics, Discord status, and optional plugins.
 
 ---
 
@@ -10,11 +10,20 @@ Get the latest release from [GitHub Releases](https://github.com/Azalea224/youtu
 
 | Platform | File |
 |----------|------|
-| **Windows** | `.exe` installer or portable `.exe` |
-| **macOS** | `.dmg` or `.zip` |
-| **Linux** | `.AppImage` or `.deb` |
+| **Linux** | `.AppImage` or `.tar.gz` |
+| **Windows** | portable `.exe` |
 
 On Linux, the app detects a Wayland session (`XDG_SESSION_TYPE=wayland`) and uses native Wayland when available; global shortcuts work via the GlobalShortcuts portal.
+
+### Arch Linux (local install via pacman)
+
+- **Build a local package** (generates a `*.pkg.tar.zst`) and install it with `pacman`:
+
+```bash
+cd aur-git
+makepkg -s
+sudo pacman -U ./*.pkg.tar.zst
+```
 
 ## Features
 
@@ -29,7 +38,7 @@ On Linux, the app detects a Wayland session (`XDG_SESSION_TYPE=wayland`) and use
 
 ## Opening Settings
 
-- **Shortcut**: `Ctrl+Shift+S` (Windows/Linux) or `Cmd+Shift+S` (macOS)
+- **Shortcut**: `Ctrl+Shift+S` (Windows/Linux)
 - **Menu**: File → Settings
 - **Tray**: Right‑click the tray icon → Settings
 

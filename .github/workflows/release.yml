@@ -36,7 +36,7 @@ jobs:
           node-version: "20"
           cache: "npm"
       - run: npm ci
-      - run: npm run electron:build -- --linux AppImage --arm64 --publish never
+      - run: npm run electron:build -- --linux AppImage tar.gz --arm64 --publish never
         env:
           CI: true
       - uses: actions/upload-artifact@v4
@@ -61,26 +61,8 @@ jobs:
           name: windows
           path: release/
 
-  release-macos:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-      - run: npm ci
-      - run: npm run electron:build -- --mac --publish never
-        env:
-          CI: true
-          CSC_IDENTITY_AUTO_DISCOVERY: false
-      - uses: actions/upload-artifact@v4
-        with:
-          name: macos
-          path: release/
-
   publish-release:
-    needs: [release-linux-amd64, release-linux-arm64, release-windows, release-macos]
+    needs: [release-linux-amd64, release-linux-arm64, release-windows]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -89,10 +71,6 @@ jobs:
           path: artifacts
       - name: Display structure of downloaded artifacts
         run: ls -R artifacts/
-      - name: Remove unwanted Windows artifacts
-        run: |
-          rm -rf artifacts/*/win-unpacked
-          find artifacts -name 'elevate.exe' -delete
       - uses: softprops/action-gh-release@v2
         with:
           # Use the tag name from the push event
@@ -101,7 +79,5 @@ jobs:
           # This glob pattern looks into each artifact subfolder for build files
           files: |
             artifacts/**/*.AppImage
-            artifacts/**/*.deb
             artifacts/**/*.exe
-            artifacts/**/*.dmg
-            artifacts/**/*.zip
+            artifacts/**/*.tar.gz

@@ -605,7 +605,7 @@ function createMainWindow() {
     minHeight: 300,
     icon: getIconPath(),
     titleBarStyle: "hidden",
-    ...(process.platform !== "darwin" ? { titleBarOverlay: true } : {}),
+    titleBarOverlay: true,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -676,23 +676,19 @@ function createMainWindow() {
   });
 
   // Minimal menu with Settings and DevTools (fallback when global shortcut conflicts on some platforms)
-  const spacer = process.platform !== "darwin" ? [
-    { label: "   ", submenu: [{ label: " ", enabled: false }] },
-  ] : [];
   const appMenu = Menu.buildFromTemplate([
-    ...spacer,
     {
-      label: process.platform === "darwin" ? "YouTube Music" : "File",
+      label: "File",
       submenu: [
-        { label: "Settings", accelerator: process.platform === "darwin" ? "Command+Shift+S" : "Ctrl+Shift+S", click: () => showSettings() },
+        { label: "Settings", accelerator: "Ctrl+Shift+S", click: () => showSettings() },
         { type: "separator" },
-        { label: process.platform === "darwin" ? "Quit" : "Exit", role: "quit" },
+        { label: "Exit", role: "quit" },
       ],
     },
     {
       label: "View",
       submenu: [
-        { label: "Toggle Developer Tools", accelerator: process.platform === "darwin" ? "Command+Option+I" : "Ctrl+Shift+I", click: () => getContentWebContents()?.toggleDevTools() },
+        { label: "Toggle Developer Tools", accelerator: "Ctrl+Shift+I", click: () => getContentWebContents()?.toggleDevTools() },
       ],
     },
   ]);
@@ -778,10 +774,7 @@ app.whenReady().then(async () => {
   } catch {}
 
   // Register settings shortcut; use fallback if primary conflicts with system (e.g. Linux screenshot tools)
-  const shortcuts =
-    process.platform === "darwin"
-      ? ["Command+Shift+S", "Command+Alt+S"]
-      : ["Ctrl+Shift+S", "Ctrl+Alt+S"];
+  const shortcuts = ["Ctrl+Shift+S", "Ctrl+Alt+S"];
   let registered = false;
   for (const accel of shortcuts) {
     if (globalShortcut.register(accel, () => showSettings())) {
@@ -887,9 +880,7 @@ app.whenReady().then(async () => {
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
+  app.quit();
 });
 
 app.on("before-quit", (e) => {

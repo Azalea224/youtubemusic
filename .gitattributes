@@ -3,10 +3,6 @@
 
 # Explicitly declare binary files (precompiled builds, assets)
 *.png binary
-*.ico binary
-*.icns binary
 *.AppImage binary
-*.deb binary
 *.exe binary
-*.dmg binary
 *.blockmap binary
