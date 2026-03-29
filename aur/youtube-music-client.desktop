@@ -1,8 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=YouTube Music
-Comment=YouTube Music desktop client
-Exec=youtube-music-client
-Icon=youtube-music-client
-Terminal=false
-Categories=Audio;Music;Player;

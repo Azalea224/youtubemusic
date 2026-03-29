@@ -33,7 +33,5 @@ release/
 # Arch Linux (makepkg / local pacman packages)
 *.pkg.tar.zst
 *.pkg.tar.xz
-aur-git/pkg/
-aur-git/src/
-aur/pkg/
-aur/src/
+aur/
+aur-git/
