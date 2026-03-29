@@ -47,7 +47,7 @@ describe("AppearanceSettings", () => {
     });
   });
 
-  it("calls onChange with updated accent_color when color input changes", async () => {
+  it("calls onChange with updated accentColor when color input changes", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(
@@ -61,29 +61,29 @@ describe("AppearanceSettings", () => {
     await user.type(colorTextInput, "#ff0000");
     expect(onChange).toHaveBeenLastCalledWith({
       ...defaultSettings.appearance,
-      accent_color: "#ff0000",
+      accentColor: "#ff0000",
     });
   });
 
-  it("calls onChange with updated font_size when select changes", async () => {
+  it("calls onChange with updated fontSize when select changes", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<AppearanceSettings settings={defaultSettings.appearance} onChange={onChange} />);
     await user.selectOptions(screen.getByLabelText("Font size"), "large");
     expect(onChange).toHaveBeenCalledWith({
       ...defaultSettings.appearance,
-      font_size: "large",
+      fontSize: "large",
     });
   });
 
-  it("calls onChange with updated compact_mode when checkbox is toggled", async () => {
+  it("calls onChange with updated compactMode when checkbox is toggled", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<AppearanceSettings settings={defaultSettings.appearance} onChange={onChange} />);
     await user.click(screen.getByLabelText("Compact mode"));
     expect(onChange).toHaveBeenCalledWith({
       ...defaultSettings.appearance,
-      compact_mode: true,
+      compactMode: true,
     });
   });
 });

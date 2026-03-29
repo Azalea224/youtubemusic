@@ -13,7 +13,7 @@ describe("AdvancedSettings", () => {
     expect(screen.getByLabelText("Custom JS injection")).toBeInTheDocument();
   });
 
-  it("calls onChange with updated custom_css when CSS textarea is edited", async () => {
+  it("calls onChange with updated customCss when CSS textarea is edited", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<AdvancedSettings settings={defaultSettings.advanced} onChange={onChange} />);
@@ -21,11 +21,11 @@ describe("AdvancedSettings", () => {
     await user.type(cssInput, "x");
     expect(onChange).toHaveBeenCalledWith({
       ...defaultSettings.advanced,
-      custom_css: "x",
+      customCss: "x",
     });
   });
 
-  it("calls onChange with updated custom_js when JS textarea is edited", async () => {
+  it("calls onChange with updated customJs when JS textarea is edited", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<AdvancedSettings settings={defaultSettings.advanced} onChange={onChange} />);
@@ -33,7 +33,7 @@ describe("AdvancedSettings", () => {
     await user.type(jsInput, "x");
     expect(onChange).toHaveBeenCalledWith({
       ...defaultSettings.advanced,
-      custom_js: "x",
+      customJs: "x",
     });
   });
 });

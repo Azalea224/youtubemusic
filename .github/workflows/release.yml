@@ -18,6 +18,11 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
+      - name: Install fpm and distro packaging tools (deb/rpm/pacman)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ruby ruby-dev build-essential rpm fakeroot dpkg-dev
+          sudo gem install fpm
       - run: npm ci
       - run: npm run electron:build -- --linux --publish never
         env:
@@ -25,7 +30,11 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: linux-amd64
-          path: release/
+          path: |
+            release/YouTubeMusic-*.AppImage
+            release/YouTubeMusic-*.pkg.tar.*
+            release/YouTubeMusic-*.deb
+            release/YouTubeMusic-*.rpm
 
   release-linux-arm64:
     runs-on: ubuntu-24.04-arm
@@ -35,14 +44,23 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
+      - name: Install fpm and distro packaging tools (deb/rpm/pacman)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ruby ruby-dev build-essential rpm fakeroot dpkg-dev
+          sudo gem install fpm
       - run: npm ci
-      - run: npm run electron:build -- --linux AppImage tar.gz --arm64 --publish never
+      - run: npm run electron:build -- --linux AppImage pacman deb rpm --arm64 --publish never
         env:
           CI: true
       - uses: actions/upload-artifact@v4
         with:
           name: linux-arm64
-          path: release/
+          path: |
+            release/YouTubeMusic-*.AppImage
+            release/YouTubeMusic-*.pkg.tar.*
+            release/YouTubeMusic-*.deb
+            release/YouTubeMusic-*.rpm
 
   release-windows:
     runs-on: windows-latest
@@ -59,7 +77,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: windows
-          path: release/
+          # Portable only (matches artifactName in package.json). Omit release/ — win-unpacked/ has many .exe.
+          path: release/YouTubeMusic-*.exe
 
   publish-release:
     needs: [release-linux-amd64, release-linux-arm64, release-windows]
@@ -76,8 +95,11 @@ jobs:
           # Use the tag name from the push event
           tag_name: ${{ github.ref_name }}
           generate_release_notes: true
-          # This glob pattern looks into each artifact subfolder for build files
+          # Match package.json artifactName: YouTubeMusic-${version}-${os}-${arch}.${ext}
+          # Do not use **/*.exe — win-unpacked/ contains many Chromium helper .exe files.
           files: |
-            artifacts/**/*.AppImage
-            artifacts/**/*.exe
-            artifacts/**/*.tar.gz
+            artifacts/**/YouTubeMusic-*.AppImage
+            artifacts/**/YouTubeMusic-*-win-*.exe
+            artifacts/**/YouTubeMusic-*.pkg.tar.*
+            artifacts/**/YouTubeMusic-*.deb
+            artifacts/**/YouTubeMusic-*.rpm

@@ -1,3 +1,4 @@
+/** Renderer-facing settings (camelCase). Persisted JSON on disk remains snake_case via preload bridge. */
 export interface AppSettings {
   general: GeneralSettings;
   appearance: AppearanceSettings;
@@ -7,33 +8,36 @@ export interface AppSettings {
 }
 
 export interface GeneralSettings {
-  start_minimized: boolean;
-  minimize_to_tray: boolean;
-  launch_at_login: boolean;
+  startMinimized: boolean;
+  minimizeToTray: boolean;
+  launchAtLogin: boolean;
 }
 
 export interface AppearanceSettings {
   theme: string;
-  accent_color: string;
-  font_size: string;
-  compact_mode: boolean;
+  /** Used when accentSource is custom, or as fallback when KDE colour cannot be read. */
+  accentColor: string;
+  /** "custom" uses accentColor; "kde" reads ~/.config/kdeglobals (Plasma) on Linux. */
+  accentSource: "custom" | "kde";
+  fontSize: string;
+  compactMode: boolean;
 }
 
 export interface DiscordSettings {
   enabled: boolean;
-  show_buttons: boolean;
-  hide_listening: boolean;
+  showButtons: boolean;
+  hideListening: boolean;
   /** Use arRPC WebSocket (for Vencord / Discord Web). When true, connects to arRPC instead of Discord IPC. */
-  use_arrpc?: boolean;
+  useArrpc?: boolean;
 }
 
 export interface PluginSettings {
-  enabled_plugins: string[];
+  enabledPlugins: string[];
 }
 
 export interface AdvancedSettings {
-  custom_css: string;
-  custom_js: string;
+  customCss: string;
+  customJs: string;
 }
 
 /** Plugin manifest (manifest.json). Used by settings UI and electron. */

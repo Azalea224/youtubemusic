@@ -26,36 +26,36 @@ describe("DiscordSettings", () => {
     });
   });
 
-  it("calls onChange with updated show_buttons when checkbox is toggled", async () => {
+  it("calls onChange with updated showButtons when checkbox is toggled", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<DiscordSettings settings={defaultSettings.discord} onChange={onChange} />);
     await user.click(screen.getByLabelText("Show buttons in presence"));
     expect(onChange).toHaveBeenCalledWith({
       ...defaultSettings.discord,
-      show_buttons: false,
+      showButtons: false,
     });
   });
 
-  it("calls onChange with updated hide_listening when checkbox is toggled", async () => {
+  it("calls onChange with updated hideListening when checkbox is toggled", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<DiscordSettings settings={defaultSettings.discord} onChange={onChange} />);
     await user.click(screen.getByLabelText("Hide listening status (privacy)"));
     expect(onChange).toHaveBeenCalledWith({
       ...defaultSettings.discord,
-      hide_listening: true,
+      hideListening: true,
     });
   });
 
-  it("calls onChange with updated use_arrpc when checkbox is toggled", async () => {
+  it("calls onChange with updated useArrpc when checkbox is toggled", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<DiscordSettings settings={defaultSettings.discord} onChange={onChange} />);
     await user.click(screen.getByLabelText("Use arRPC (Vencord / Discord Web)"));
     expect(onChange).toHaveBeenCalledWith({
       ...defaultSettings.discord,
-      use_arrpc: true,
+      useArrpc: true,
     });
   });
 });

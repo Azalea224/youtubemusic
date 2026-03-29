@@ -14,36 +14,36 @@ describe("GeneralSettings", () => {
     expect(screen.getByRole("checkbox", { name: /Launch at login/ })).toBeInTheDocument();
   });
 
-  it("calls onChange with updated start_minimized when checkbox is toggled", async () => {
+  it("calls onChange with updated startMinimized when checkbox is toggled", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<GeneralSettings settings={defaultSettings.general} onChange={onChange} />);
     await user.click(screen.getByLabelText("Start minimized"));
     expect(onChange).toHaveBeenCalledWith({
       ...defaultSettings.general,
-      start_minimized: true,
+      startMinimized: true,
     });
   });
 
-  it("calls onChange with updated minimize_to_tray when checkbox is toggled", async () => {
+  it("calls onChange with updated minimizeToTray when checkbox is toggled", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<GeneralSettings settings={defaultSettings.general} onChange={onChange} />);
     await user.click(screen.getByLabelText("Minimize to tray"));
     expect(onChange).toHaveBeenCalledWith({
       ...defaultSettings.general,
-      minimize_to_tray: false,
+      minimizeToTray: false,
     });
   });
 
-  it("calls onChange with updated launch_at_login when checkbox is toggled", async () => {
+  it("calls onChange with updated launchAtLogin when checkbox is toggled", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<GeneralSettings settings={defaultSettings.general} onChange={onChange} />);
     await user.click(screen.getByRole("checkbox", { name: /Launch at login/ }));
     expect(onChange).toHaveBeenCalledWith({
       ...defaultSettings.general,
-      launch_at_login: true,
+      launchAtLogin: true,
     });
   });
 });

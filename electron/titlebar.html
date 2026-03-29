@@ -6,7 +6,7 @@
   <title>YouTube Music</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; overflow: hidden; font-family: system-ui, -apple-system, sans-serif; user-select: none; -webkit-app-region: drag; }
+    html, body { height: 100%; overflow: hidden; font-family: system-ui, -apple-system, "Segoe UI", "Cantarell", "Noto Sans", sans-serif; user-select: none; -webkit-app-region: drag; }
     .titlebar {
       display: flex;
       align-items: center;
@@ -52,19 +52,25 @@
       var accent = params.get("accent") || "#1a73e8";
       var font = params.get("font") || "medium";
       var compact = params.get("compact") === "true";
+      var darkParam = params.get("dark");
       var root = document.documentElement;
       var body = document.body;
       var tb = document.getElementById("tb");
       if (compact) tb.classList.add("titlebar-compact");
-      var isDark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+      var isDark =
+        darkParam === "1" || darkParam === "0"
+          ? darkParam === "1"
+          : theme === "dark" ||
+            (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+      root.style.colorScheme = isDark ? "dark" : "light";
       if (isDark) {
-        root.style.background = "#1f1f1f";
-        body.style.background = "#1f1f1f";
-        body.style.color = "#e8e8e8";
+        root.style.background = "#303030";
+        body.style.background = "#303030";
+        body.style.color = "#ececec";
       } else {
-        root.style.background = "#f5f5f5";
-        body.style.background = "#f5f5f5";
-        body.style.color = "#1f1f1f";
+        root.style.background = "#ebebeb";
+        body.style.background = "#ebebeb";
+        body.style.color = "#242424";
       }
       root.style.setProperty("--accent", accent);
       var size = font === "small" ? "12px" : font === "large" ? "14px" : "13px";

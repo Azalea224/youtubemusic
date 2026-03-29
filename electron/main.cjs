@@ -5,6 +5,8 @@ const createDiscordRPC = require("discord-rich-presence");
 const WebSocket = require("ws");
 const { ElectronBlocker } = require("@ghostery/adblocker-electron");
 const fetch = require("cross-fetch");
+const kdeAccent = require("./kde-accent.cjs");
+const { createDiscordPresence } = require("./discord-presence.cjs");
 
 const TITLEBAR_HEIGHT_NORMAL = 40;
 const TITLEBAR_HEIGHT_COMPACT = 28;
@@ -15,8 +17,6 @@ function getTitlebarHeight() {
 }
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
-/** Discord Application ID for Rich Presence (native Discord IPC and arRPC). */
-const BUILTIN_DISCORD_CLIENT_ID = "1477073382104371360";
 /** Delay (ms) before quitting to allow Discord RPC to disconnect. */
 const DISCORD_QUIT_DELAY_MS = 150;
 
@@ -37,6 +37,8 @@ if (process.platform === "linux") {
   }
   app.commandLine.appendSwitch("enable-features", features.join(","));
 }
+
+tryRegisterYoutubemusicProtocol();
 
 function getIconPath() {
   const base = path.join(__dirname, "..");
@@ -70,101 +72,99 @@ let titlebarView = null;
 let contentView = null;
 let settingsWindow = null;
 let tray = null;
-let discordClient = null;
-/** arRPC WebSocket (for Vencord / Discord Web). When set, we use arRPC instead of Discord IPC. */
-let arrpcWs = null;
-/** Interval handle for periodic arRPC presence refresh while playing. */
-let arrpcRefreshTimer = null;
-/** Whether we already warned that arRPC replied with dummy user (standalone, no Vesktop bridge). */
-let arrpcStandaloneWarned = false;
 let lastPlaybackState = null;
+/** @type {import("fs").FSWatcher | null} */
+let kdeglobalsWatcher = null;
+let mprisLinux = null;
+/** macOS: protocol URL may arrive before ready */
+let pendingDeepLink = null;
 
-/** arRPC listens on 6463–6472. Try connecting with Origin so arRPC accepts us. */
-const ARRPC_PORTS = [6463, 6464, 6465, 6466, 6467, 6468, 6469, 6470, 6471, 6472];
-
-const ARRPC_IPC_TIMEOUT_MS = 3500;
-
-/** Try connecting to arRPC/Discord via IPC (discord-ipc-0). Resolves with client on success, rejects on error or timeout. */
-function tryConnectArrpcViaIPC(clientId) {
-  return new Promise((resolve, reject) => {
-    const client = createDiscordRPC(clientId);
-    const timeout = setTimeout(() => {
-      try {
-        if (typeof client.destroy === "function") client.destroy();
-        else if (typeof client.disconnect === "function") client.disconnect();
-      } catch {}
-      reject(new Error("IPC timeout"));
-    }, ARRPC_IPC_TIMEOUT_MS);
-    client.once("connected", () => {
-      clearTimeout(timeout);
-      resolve(client);
-    });
-    client.once("error", () => {
-      clearTimeout(timeout);
-      try {
-        if (typeof client.destroy === "function") client.destroy();
-        else if (typeof client.disconnect === "function") client.disconnect();
-      } catch {}
-      reject(new Error("IPC error"));
-    });
-  });
-}
-
-function connectArrpc(clientId) {
-  return new Promise((resolve) => {
-    let tried = 0;
-    function tryPort() {
-      const port = ARRPC_PORTS[tried];
-      if (port == null) {
-        resolve(null);
-        return;
-      }
-      const url = `ws://127.0.0.1:${port}/?v=1&encoding=json&client_id=${clientId}`;
-      const ws = new WebSocket(url, {
-        origin: "https://discord.com",
-      });
-      const timeout = setTimeout(() => {
-        try {
-          ws.close();
-        } catch {}
-        tried++;
-        tryPort();
-      }, 2000);
-      ws.on("open", () => {
-        clearTimeout(timeout);
-        resolve(ws);
-      });
-      ws.on("error", () => {
-        clearTimeout(timeout);
-        tried++;
-        tryPort();
-      });
-      ws.on("close", () => {
-        clearTimeout(timeout);
-      });
-    }
-    tryPort();
-  });
-}
-
-function closeArrpc() {
-  if (arrpcRefreshTimer) {
-    clearInterval(arrpcRefreshTimer);
-    arrpcRefreshTimer = null;
-  }
-  if (arrpcWs) {
-    try {
-      arrpcWs.close();
-    } catch {}
-    arrpcWs = null;
-  }
-}
+const discordPresence = createDiscordPresence({
+  createDiscordRPC,
+  WebSocket,
+  isDev,
+  getSettings,
+  getLastPlaybackState: () => lastPlaybackState,
+});
 
 /** WebContents for the YTM page (content view). Use for injection and playback. */
 function getContentWebContents() {
   return contentView && contentView.webContents && !contentView.webContents.isDestroyed()
     ? contentView.webContents
     : null;
+}
+
+function navigateYtm(url) {
+  const wc = getContentWebContents();
+  if (!wc || wc.isDestroyed()) return;
+  if (url && url.startsWith("https://music.youtube.com")) {
+    wc.loadURL(url);
+  }
+}
+
+/** Expects `youtubemusic://open?url=https%3A%2F%2Fmusic.youtube.com%2F...` */
+function handleDeepLinkUrl(urlStr) {
+  if (!urlStr || typeof urlStr !== "string") return;
+  try {
+    const u = new URL(urlStr);
+    if (u.protocol !== "youtubemusic:") return;
+    const explicit = u.searchParams.get("url");
+    if (explicit) {
+      const decoded = decodeURIComponent(explicit);
+      if (decoded.startsWith("https://music.youtube.com")) {
+        navigateYtm(decoded);
+      }
+    }
+  } catch (err) {
+    console.warn("[YTM] Deep link:", err && err.message ? err.message : err);
+  }
+}
+
+function focusMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+function buildYtmMediaScript(kind) {
+  const body = {
+    playpause: `var b=q(bar,'#play-pause-button');if(b)b.click();`,
+    play: `var b=q(bar,'#play-pause-button');if(b){var l=(b.getAttribute('aria-label')||'').toLowerCase();if(l.indexOf('play')>=0)b.click();}`,
+    pause: `var b=q(bar,'#play-pause-button');if(b){var l=(b.getAttribute('aria-label')||'').toLowerCase();if(l.indexOf('pause')>=0)b.click();}`,
+    next: `var b=q(bar,'#next-button')||q(bar,'.next-button');if(b)b.click();`,
+    previous: `var b=q(bar,'#previous-button')||q(bar,'.previous-button');if(b)b.click();`,
+    stop: `var b=q(bar,'#play-pause-button');if(b){var l=(b.getAttribute('aria-label')||'').toLowerCase();if(l.indexOf('pause')>=0)b.click();}`,
+  }[kind];
+  if (!body) return "";
+  return `(function(){try{function q(root,sel){if(!root)return null;var sr=root.shadowRoot||root._shadowRoot;if(sr){var r=sr.querySelector(sel);if(r)return r;}return root.querySelector(sel);}var bar=document.querySelector('ytmusic-player-bar');if(!bar)return;${body}}catch(e){}})();`;
+}
+
+function runYtmMediaAction(kind) {
+  const wc = getContentWebContents();
+  if (!wc || wc.isDestroyed()) return;
+  const script = buildYtmMediaScript(kind);
+  if (script) wc.executeJavaScript(script).catch(() => {});
+}
+
+function processPendingDeepLinks() {
+  if (pendingDeepLink) {
+    handleDeepLinkUrl(pendingDeepLink);
+    pendingDeepLink = null;
+    return;
+  }
+  for (const arg of process.argv) {
+    if (typeof arg === "string" && arg.startsWith("youtubemusic://")) {
+      handleDeepLinkUrl(arg);
+      break;
+    }
+  }
+}
+
+function tryRegisterYoutubemusicProtocol() {
+  try {
+    app.setAsDefaultProtocolClient("youtubemusic");
+  } catch {}
 }
 
 function getAppDataDir() {
@@ -195,6 +195,7 @@ function getSettings() {
     appearance: {
       theme: "system",
       accent_color: "#b0b0b0",
+      accent_source: "custom",
       font_size: "medium",
       compact_mode: false,
     },
@@ -328,9 +329,14 @@ function reportPlaybackState(state) {
   if (state.isAdvertisement) return;
   if (!state.title && !state.artist) return;
   lastPlaybackState = state;
+  if (process.platform === "linux" && mprisLinux) {
+    try {
+      mprisLinux.sync(state);
+    } catch {}
+  }
   const wc = getContentWebContents();
   if (wc && !wc.isDestroyed()) wc.send("playback-update", state);
-  updateDiscordPresence(state);
+  discordPresence.updatePresence(state);
 }
 
 function makePollInjectOnceScript() {
@@ -354,10 +360,47 @@ function injectPlaybackPollIfEnabled() {
   wc.executeJavaScript(script).catch(() => {});
 }
 
+function getEffectiveAccentColor() {
+  const s = getSettings();
+  const a = s.appearance || {};
+  const fallback = (a.accent_color || "#b0b0b0").trim();
+  if ((a.accent_source || "custom") !== "kde") return fallback;
+  const kde = kdeAccent.readKdeAccentColor();
+  return kde || fallback;
+}
+
+function notifyKdeAccentPreview() {
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.webContents.send("kde-accent-changed");
+  }
+}
+
+function refreshKdeAccentUi() {
+  if (titlebarView && titlebarView.webContents && !titlebarView.webContents.isDestroyed()) {
+    titlebarView.webContents.loadURL(getTitlebarUrl());
+  }
+  applySettingsToMainWebview();
+  notifyKdeAccentPreview();
+}
+
+function setupKdeAccentWatcher() {
+  if (kdeglobalsWatcher) {
+    try {
+      kdeglobalsWatcher.close();
+    } catch {}
+    kdeglobalsWatcher = null;
+  }
+  const s = getSettings();
+  if (process.platform !== "linux" || (s.appearance?.accent_source || "custom") !== "kde") return;
+  kdeglobalsWatcher = kdeAccent.watchKdeglobals(() => {
+    refreshKdeAccentUi();
+  });
+}
+
 function buildAppearanceCss() {
   const s = getSettings();
   const a = s.appearance || {};
-  const accent = (a.accent_color || "#b0b0b0").trim();
+  const accent = getEffectiveAccentColor();
   const theme = (a.theme || "system").toLowerCase();
   const fontScale = { small: "13px", medium: "14px", large: "16px" }[a.font_size || "medium"] || "14px";
   const lines = [];
@@ -416,148 +459,6 @@ function applySettingsToMainWebview() {
   if (customJs) wc.executeJavaScript(customJs).catch(() => {});
 }
 
-async function updateDiscordPresence(playback) {
-  if (!playback || (!playback.title && !playback.artist)) return;
-  const s = getSettings();
-  const { enabled, hide_listening, use_arrpc, show_buttons } = s.discord;
-  if (!enabled || hide_listening) return;
-  const ytmButtons = show_buttons
-    ? [
-        { label: "Listen on YouTube Music", url: "https://music.youtube.com" },
-        { label: "YouTube Music", url: "https://music.youtube.com" },
-      ]
-    : null;
-  try {
-    if (use_arrpc) {
-      const needConnection = !discordClient && (!arrpcWs || arrpcWs.readyState !== WebSocket.OPEN);
-      if (needConnection) {
-        closeArrpc();
-        try {
-          discordClient = await tryConnectArrpcViaIPC(BUILTIN_DISCORD_CLIENT_ID);
-          if (isDev) console.log("[Discord RPC] arRPC connected via IPC (discord-ipc-0)");
-          discordClient.on("error", () => {
-            discordClient = null;
-          });
-        } catch {
-          discordClient = null;
-          arrpcWs = await connectArrpc(BUILTIN_DISCORD_CLIENT_ID);
-          if (arrpcWs) {
-            if (isDev) console.log("[Discord RPC] arRPC connected via WebSocket (6463 fallback)");
-            arrpcWs.on("close", () => {
-              arrpcWs = null;
-              if (arrpcRefreshTimer) clearInterval(arrpcRefreshTimer);
-              arrpcRefreshTimer = null;
-            });
-            arrpcStandaloneWarned = false;
-            arrpcWs.on("message", (data) => {
-              if (isDev && data) console.log("[Discord RPC] arRPC reply:", String(data).slice(0, 200));
-              if (data && !arrpcStandaloneWarned) {
-                try {
-                  const msg = typeof data === "string" ? JSON.parse(data) : data;
-                  if (msg.cmd === "DISPATCH" && msg.evt === "READY" && msg.data?.user?.username === "arrpc") {
-                    arrpcStandaloneWarned = true;
-                    console.warn(
-                      "[Discord RPC] arRPC server is in standalone mode (no Discord client linked). " +
-                        "Enable the WebRichPresence (arRPC) plugin in Vesktop (Vencord → Plugins) and close any manual npx arrpc."
-                    );
-                  }
-                } catch {}
-              }
-            });
-          } else {
-            if (isDev) {
-              console.warn(
-                "[Discord RPC] arRPC: IPC and WebSocket (6463–6472) failed. Is the arRPC server running?"
-              );
-            }
-            return;
-          }
-        }
-      }
-      if (discordClient) {
-        const activity = {
-          type: 2,
-          name: "YouTube Music",
-          details: playback.title,
-          state: playback.artist,
-          largeImageKey: "ytm",
-          largeImageText: "YouTube Music",
-        };
-        if (ytmButtons) activity.buttons = ytmButtons;
-        if (playback.state === "playing" && playback.duration > 0) {
-          const now = Math.floor(Date.now() / 1000);
-          activity.startTimestamp = now;
-          activity.endTimestamp = now + (playback.duration - playback.progress);
-        }
-        discordClient.updatePresence(activity);
-        if (!arrpcRefreshTimer && playback.state === "playing") {
-          arrpcRefreshTimer = setInterval(() => {
-            if (!discordClient && !arrpcWs) return;
-            const s = getSettings();
-            if (!s.discord.enabled || s.discord.hide_listening || !s.discord.use_arrpc) return;
-            updateDiscordPresence(lastPlaybackState);
-          }, 25000);
-        }
-        return;
-      }
-      if (arrpcWs && arrpcWs.readyState === WebSocket.OPEN) {
-        const activity = {
-          type: 2,
-          name: "YouTube Music",
-          state: playback.artist,
-          details: playback.title,
-          assets: { large_image: "ytm", large_text: "YouTube Music" },
-        };
-        if (ytmButtons) activity.buttons = ytmButtons;
-        if (playback.state === "playing" && playback.duration > 0) {
-          const now = Math.floor(Date.now() / 1000);
-          activity.timestamps = {
-            start: now,
-            end: now + Math.max(0, Math.floor(playback.duration - playback.progress)),
-          };
-        }
-        arrpcWs.send(
-          JSON.stringify({
-            cmd: "SET_ACTIVITY",
-            nonce: String(Date.now()),
-            args: { pid: process.pid, activity },
-          })
-        );
-        if (isDev) console.log("[Discord RPC] arRPC SET_ACTIVITY sent (WS):", activity.details, "—", activity.state);
-        if (!arrpcRefreshTimer && playback.state === "playing") {
-          arrpcRefreshTimer = setInterval(() => {
-            if (!discordClient && (!arrpcWs || arrpcWs.readyState !== WebSocket.OPEN)) return;
-            const s = getSettings();
-            if (!s.discord.enabled || s.discord.hide_listening || !s.discord.use_arrpc) return;
-            updateDiscordPresence(lastPlaybackState);
-          }, 25000);
-        }
-      }
-      return;
-    }
-    if (!discordClient) {
-      discordClient = createDiscordRPC(BUILTIN_DISCORD_CLIENT_ID);
-    }
-    const activity = {
-      type: 2,
-      name: "YouTube Music",
-      details: playback.title,
-      state: playback.artist,
-      largeImageKey: "ytm",
-      largeImageText: "YouTube Music",
-    };
-    if (ytmButtons) activity.buttons = ytmButtons;
-    if (playback.state === "playing" && playback.duration > 0) {
-      const now = Math.floor(Date.now() / 1000);
-      activity.startTimestamp = now;
-      activity.endTimestamp = now + (playback.duration - playback.progress);
-    }
-    discordClient.updatePresence(activity);
-  } catch (err) {
-    // Discord RPC errors are non-fatal; presence will retry on next update
-  }
-}
-
 function scanPlugins() {
   const pluginsDir = getPluginsDir();
   fs.mkdirSync(pluginsDir, { recursive: true });
@@ -576,13 +477,23 @@ function scanPlugins() {
   return result;
 }
 
+/** Resolve light/dark for the custom titlebar using Electron's nativeTheme (XDG portal / GTK on Linux). */
+function resolveTitlebarDark() {
+  const s = getSettings();
+  const theme = (s.appearance?.theme || "system").toLowerCase();
+  if (theme === "light") return false;
+  if (theme === "dark") return true;
+  return nativeTheme.shouldUseDarkColors;
+}
+
 function getTitlebarUrl() {
   const s = getSettings();
   const params = new URLSearchParams({
     theme: s.appearance.theme || "system",
-    accent: s.appearance.accent_color || "#b0b0b0",
+    accent: getEffectiveAccentColor(),
     font: s.appearance.font_size || "medium",
     compact: String(!!s.appearance.compact_mode),
+    dark: resolveTitlebarDark() ? "1" : "0",
   });
   const titlebarPath = path.join(__dirname, "titlebar.html");
   return "file://" + titlebarPath.replace(/\\/g, "/") + "?" + params.toString();
@@ -604,6 +515,7 @@ function createMainWindow() {
     minWidth: 400,
     minHeight: 300,
     icon: getIconPath(),
+    backgroundColor: resolveTitlebarDark() ? "#303030" : "#ebebeb",
     titleBarStyle: "hidden",
     titleBarOverlay: true,
     webPreferences: {
@@ -756,7 +668,32 @@ function createTray() {
   tray.on("click", () => mainWindow?.show());
 }
 
-app.whenReady().then(async () => {
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on("second-instance", (event, commandLine) => {
+    focusMainWindow();
+    for (const arg of commandLine) {
+      if (typeof arg === "string" && arg.startsWith("youtubemusic://")) {
+        handleDeepLinkUrl(arg);
+        break;
+      }
+    }
+  });
+
+  if (process.platform === "darwin") {
+    app.on("open-url", (event, url) => {
+      event.preventDefault();
+      pendingDeepLink = url;
+      if (app.isReady()) {
+        handleDeepLinkUrl(url);
+        pendingDeepLink = null;
+      }
+    });
+  }
+
+  app.whenReady().then(async () => {
   await enableAdblocker();
   ensureDefaultPlugins();
   const s = getSettings();
@@ -764,6 +701,23 @@ app.whenReady().then(async () => {
   if (["light", "dark", "system"].includes(theme)) nativeTheme.themeSource = theme;
   createMainWindow();
   createTray();
+  setupKdeAccentWatcher();
+
+  if (process.platform === "linux") {
+    try {
+      mprisLinux = require("./mpris-linux.cjs");
+      mprisLinux.init({
+        onRaise: () => focusMainWindow(),
+        onQuit: () => app.quit(),
+        onMediaAction: (kind) => runYtmMediaAction(kind),
+        getPositionSec: () => (lastPlaybackState && lastPlaybackState.progress) || 0,
+      });
+    } catch (e) {
+      console.warn("[YTM] MPRIS:", e.message);
+      mprisLinux = null;
+    }
+  }
+  processPendingDeepLinks();
 
   if (s.general.start_minimized) {
     mainWindow?.hide();
@@ -786,10 +740,25 @@ app.whenReady().then(async () => {
     console.warn("[YTM] Could not register settings shortcut; use tray menu or Settings in app menu.");
   }
 
+  nativeTheme.on("updated", () => {
+    const t = getSettings().appearance?.theme || "system";
+    if (t !== "system") return;
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      try {
+        mainWindow.setBackgroundColor(resolveTitlebarDark() ? "#303030" : "#ebebeb");
+      } catch {}
+    }
+    if (titlebarView && titlebarView.webContents && !titlebarView.webContents.isDestroyed()) {
+      titlebarView.webContents.loadURL(getTitlebarUrl());
+    }
+  });
+
   const initialSettings = getSettings();
   let lastEnabledPlugins = (initialSettings.plugins?.enabled_plugins || []).slice().sort();
 
   ipcMain.handle("get-settings", () => getSettings());
+  ipcMain.handle("get-effective-accent-color", () => getEffectiveAccentColor());
+  ipcMain.handle("get-kde-accent-available", () => kdeAccent.isKdeAccentAvailable());
   ipcMain.handle("set-settings", (_, settings) => {
     const prevPlugins = lastEnabledPlugins;
     lastEnabledPlugins = (settings?.plugins?.enabled_plugins || []).slice().sort();
@@ -801,41 +770,14 @@ app.whenReady().then(async () => {
     if (["light", "dark", "system"].includes(theme)) {
       nativeTheme.themeSource = theme;
     }
-    if (settings?.discord) {
-      const { enabled, use_arrpc } = settings.discord;
-      if (!enabled) {
-        try {
-          if (discordClient) {
-            if (typeof discordClient.destroy === "function") discordClient.destroy();
-            else if (typeof discordClient.disconnect === "function") discordClient.disconnect();
-          }
-        } catch {}
-        discordClient = null;
-        closeArrpc();
-      } else {
-        if (use_arrpc && discordClient) {
-          try {
-            if (typeof discordClient.destroy === "function") discordClient.destroy();
-            else if (typeof discordClient.disconnect === "function") discordClient.disconnect();
-          } catch {}
-          discordClient = null;
-        }
-        if (!use_arrpc && arrpcWs) closeArrpc();
-        if (!use_arrpc && discordClient) {
-          try {
-            if (typeof discordClient.destroy === "function") discordClient.destroy();
-            else if (typeof discordClient.disconnect === "function") discordClient.disconnect();
-          } catch {}
-          discordClient = null;
-        }
-      }
-    }
+    discordPresence.applyDiscordSettingsChange(settings);
     if (settingsWindow && !settingsWindow.isDestroyed()) {
       settingsWindow.webContents.send("settings-changed");
     }
     if (titlebarView && titlebarView.webContents && !titlebarView.webContents.isDestroyed()) {
       titlebarView.webContents.loadURL(getTitlebarUrl());
     }
+    setupKdeAccentWatcher();
     layoutViews();
     const pluginsChanged =
       !prevPlugins ||
@@ -877,27 +819,32 @@ app.whenReady().then(async () => {
     const screenY = bounds.y + (typeof y === "number" ? y : getTitlebarHeight());
     item.submenu.popup({ window: mainWindow, x: Math.round(screenX), y: Math.round(screenY) });
   });
-});
+  });
 
-app.on("window-all-closed", () => {
-  app.quit();
-});
+  app.on("window-all-closed", () => {
+    app.quit();
+  });
 
-app.on("before-quit", (e) => {
+  app.on("before-quit", (e) => {
   app.isQuitting = true;
+  if (kdeglobalsWatcher) {
+    try {
+      kdeglobalsWatcher.close();
+    } catch {}
+    kdeglobalsWatcher = null;
+  }
   globalShortcut.unregisterAll();
 
-  if (discordClient || arrpcWs) {
+  if (discordPresence.isConnected()) {
     e.preventDefault();
-    const client = discordClient;
-    discordClient = null;
+    const client = discordPresence.takeNativeClientForQuit();
     try {
       if (client) {
         if (typeof client.destroy === "function") client.destroy();
         else if (typeof client.disconnect === "function") client.disconnect();
       }
     } catch {}
-    closeArrpc();
+    discordPresence.closeArrpc();
     // Give Discord IPC time to close before proceeding with quit
     setTimeout(() => {
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.destroy();
@@ -926,4 +873,5 @@ app.on("before-quit", (e) => {
   }
   mainWindow = null;
   settingsWindow = null;
-});
+  });
+}

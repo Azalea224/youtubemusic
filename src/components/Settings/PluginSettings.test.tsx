@@ -14,7 +14,7 @@ describe("PluginSettings", () => {
     render(<PluginSettings settings={defaultSettings.plugins} onChange={onChange} />);
     expect(screen.getByRole("heading", { name: "Plugins" })).toBeInTheDocument();
     expect(
-      screen.getByText(/Plugins extend the app with custom functionality/)
+      screen.getByText(/Plugins add features on top of YouTube Music/)
     ).toBeInTheDocument();
     await screen.findByText(/No plugins found/);
   });
@@ -59,7 +59,7 @@ describe("PluginSettings", () => {
     await user.click(screen.getByRole("checkbox", { name: "Enabled" }));
     expect(onChange).toHaveBeenCalledWith({
       ...defaultSettings.plugins,
-      enabled_plugins: ["test-plugin"],
+      enabledPlugins: ["test-plugin"],
     });
   });
 });

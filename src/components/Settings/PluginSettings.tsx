@@ -19,18 +19,18 @@ export function PluginSettings({ settings, onChange }: PluginSettingsProps) {
 
   const togglePlugin = (id: string, enabled: boolean) => {
     const next = enabled
-      ? [...settings.enabled_plugins, id]
-      : settings.enabled_plugins.filter((p) => p !== id);
-    onChange({ ...settings, enabled_plugins: next });
+      ? [...settings.enabledPlugins, id]
+      : settings.enabledPlugins.filter((p) => p !== id);
+    onChange({ ...settings, enabledPlugins: next });
   };
 
-  const isEnabled = (id: string) => settings.enabled_plugins.includes(id);
+  const isEnabled = (id: string) => settings.enabledPlugins.includes(id);
 
   return (
     <SettingsSection title="Plugins">
       <p className="setting-hint">
-        Plugins extend the app with custom functionality. Place plugin folders (with manifest.json)
-        in your app data plugins directory.
+        Plugins add features on top of YouTube Music. Put each plugin in a folder with a{" "}
+        <code>manifest.json</code> inside your app data <strong>plugins</strong> directory (use Debug below if you are unsure where that is).
       </p>
       <div className="setting-row">
         <button

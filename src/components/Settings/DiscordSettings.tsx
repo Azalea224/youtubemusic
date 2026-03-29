@@ -16,29 +16,29 @@ export function DiscordSettings({ settings, onChange }: DiscordSettingsProps) {
         onChange={(v) => onChange({ ...settings, enabled: v })}
       />
       <p className="setting-hint">
-        Shows what you're listening to on Discord.
+        When enabled, your Discord profile can show the current track (respecting the privacy option below).
       </p>
       <SettingCheckbox
         label="Show buttons in presence"
-        checked={settings.show_buttons}
-        onChange={(v) => onChange({ ...settings, show_buttons: v })}
+        checked={settings.showButtons}
+        onChange={(v) => onChange({ ...settings, showButtons: v })}
       />
-      {(settings.use_arrpc ?? false) && settings.show_buttons && (
+      {(settings.useArrpc ?? false) && settings.showButtons && (
         <p className="setting-hint">
           Buttons are sent but often don’t show in Vesktop/arRPC; they work with the official Discord app.
         </p>
       )}
       <SettingCheckbox
         label="Hide listening status (privacy)"
-        checked={settings.hide_listening}
-        onChange={(v) => onChange({ ...settings, hide_listening: v })}
+        checked={settings.hideListening}
+        onChange={(v) => onChange({ ...settings, hideListening: v })}
       />
       <SettingCheckbox
         label="Use arRPC (Vencord / Discord Web)"
-        checked={settings.use_arrpc ?? false}
-        onChange={(v) => onChange({ ...settings, use_arrpc: v })}
+        checked={settings.useArrpc ?? false}
+        onChange={(v) => onChange({ ...settings, useArrpc: v })}
       />
-      {(settings.use_arrpc ?? false) && (
+      {(settings.useArrpc ?? false) && (
         <p className="setting-hint">
           Connects via <strong>IPC</strong> (discord-ipc-0) first, then WebSocket (6463) if needed. In Vesktop enable the <strong>WebRichPresence (arRPC)</strong> plugin (Vencord → Plugins). Close any manual <code>npx arrpc</code> and the official Discord app to avoid conflicts.
         </p>

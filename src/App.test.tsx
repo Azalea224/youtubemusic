@@ -66,6 +66,6 @@ describe("App", () => {
     await user.click(screen.getByLabelText("Start minimized"));
     const lastSet = window.__electronAPIMock?.getLastSetSettings();
     expect(lastSet).toBeDefined();
-    expect(lastSet?.general.start_minimized).toBe(true);
+    expect(lastSet?.general.startMinimized).toBe(true);
   });
 });

@@ -12,15 +12,15 @@ export function AdvancedSettings({ settings, onChange }: AdvancedSettingsProps) 
     <SettingsSection title="Advanced">
       <SettingTextarea
         label="Custom CSS injection"
-        value={settings.custom_css}
-        onChange={(v) => onChange({ ...settings, custom_css: v })}
+        value={settings.customCss}
+        onChange={(v) => onChange({ ...settings, customCss: v })}
         placeholder="Optional CSS to inject into YouTube Music"
         rows={4}
       />
       <SettingTextarea
         label="Custom JS injection"
-        value={settings.custom_js}
-        onChange={(v) => onChange({ ...settings, custom_js: v })}
+        value={settings.customJs}
+        onChange={(v) => onChange({ ...settings, customJs: v })}
         placeholder="Optional JavaScript to inject (use with caution)"
         rows={4}
       />

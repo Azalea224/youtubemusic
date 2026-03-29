@@ -1,29 +1,51 @@
 # YouTube Music Desktop Client
 
-A desktop app for [YouTube Music](https://music.youtube.com) on Windows (portable) and Linux. Listen with a native window, system tray, synced lyrics, Discord status, and optional plugins.
+A desktop wrapper for [YouTube Music](https://music.youtube.com), **developed for Linux first** (Wayland and X11, KDE/GNOME-style desktops, tray integration, and Arch packaging). A **Windows** portable build is also provided for parity.
+
+You get a native window, system tray, synced lyrics, Discord status, and optional plugins.
 
 ---
 
 ## Download
 
-Get the latest release from [GitHub Releases](https://github.com/Azalea224/youtubemusic/releases). Pick the file for your system:
+Releases are on [GitHub Releases](https://github.com/Azalea224/youtubemusic/releases). **Linux is the primary target**; pick the binary that matches your system:
 
 | Platform | File |
 |----------|------|
-| **Linux** | `.AppImage` or `.tar.gz` |
-| **Windows** | portable `.exe` |
+| **Linux** (recommended) | `.AppImage` (portable); `.deb` / `.rpm` (install with `apt`/`dnf`/`rpm`); `.pkg.tar.*` (Arch, `pacman -U`) |
+| **Windows** (secondary) | portable `.exe` |
 
-On Linux, the app detects a Wayland session (`XDG_SESSION_TYPE=wayland`) and uses native Wayland when available; global shortcuts work via the GlobalShortcuts portal.
+On Linux, the app detects a Wayland session (`XDG_SESSION_TYPE=wayland`) and uses native Wayland when available; global shortcuts use the GlobalShortcuts portal. Appearance options can follow the system theme and (on KDE Plasma) accent colours from `~/.config/kdeglobals`.
 
-### Arch Linux (local install via pacman)
+**Desktop integration (Linux)**
 
-- **Build a local package** (generates a `*.pkg.tar.zst`) and install it with `pacman`:
+- **MPRIS** – Playback metadata and controls are exposed on the session D-Bus (`org.mpris.MediaPlayer2`), so GNOME/KDE media controls, lock-screen widgets, and hardware keys can drive play/pause/next/previous when the app is running.
+- **Single instance** – Launching the app again focuses the existing window instead of opening a second process.
+- **Deep links** – The `youtubemusic` URL scheme opens the app and navigates the embedded player to a YouTube Music URL, for example:
+
+  `youtubemusic://open?url=https%3A%2F%2Fmusic.youtube.com%2Fwatch%3Fv%3D…`
+
+  Packaged builds register `x-scheme-handler/youtubemusic` in the `.desktop` entry where the installer supports it.
+
+**`.deb` / `.rpm` from releases** (pick the asset for your CPU architecture):
 
 ```bash
-cd aur-git
-makepkg -s
-sudo pacman -U ./*.pkg.tar.zst
+# Debian / Ubuntu (example: x64 .deb from the release page)
+sudo apt install ./YouTubeMusic-*-linux-x64.deb
+
+# Fedora / RHEL-style (example: x64 .rpm)
+sudo dnf install ./YouTubeMusic-*-linux-x64.rpm
 ```
+
+### Arch Linux (`pacman`)
+
+- **From GitHub Releases** – Use the `YouTubeMusic-*-linux-x64.pkg.tar.*` or `…-linux-arm64.pkg.tar.*` asset for your CPU, then:
+
+```bash
+sudo pacman -U ./YouTubeMusic-*-linux-*.pkg.tar.*
+```
+
+- **From source** – Clone this repo and run `npm run electron:build` to produce Linux artifacts under `release/` (see `package.json` / electron-builder config). For Arch, the `.pkg.tar.*` from GitHub Releases is the supported install path unless you maintain your own PKGBUILD.
 
 ## Features
 
@@ -32,13 +54,13 @@ sudo pacman -U ./*.pkg.tar.zst
 - **Lyrics** – Synced lyrics overlay (closed-caption style) from NetEase Cloud, LRCLIB, or YouTube
 - **Discord Rich Presence** – Show what you’re listening to on Discord
 - **Plugins** – Add extra features via plugins (e.g. fine volume control, lyrics)
-- **Settings** – General, Appearance, Playback, Discord, Plugins, and more
+- **Settings** – General, Appearance, Discord, Plugins, and Advanced (custom CSS/JS)
 - **System Tray** – Minimize to tray; open from the tray icon
-- **Portable** – AppImage on Linux, portable exe on Windows
+- **Portable** – AppImage or Arch package on Linux (primary); portable `.exe` on Windows
 
 ## Opening Settings
 
-- **Shortcut**: `Ctrl+Shift+S` (Windows/Linux)
+- **Shortcut**: `Ctrl+Shift+S` (Linux / Windows)
 - **Menu**: File → Settings
 - **Tray**: Right‑click the tray icon → Settings
 
@@ -46,9 +68,7 @@ If the shortcut doesn’t work (e.g. conflicts with another app), use the menu o
 
 ## Discord Rich Presence
 
-1. Go to [Discord Developer Portal](https://discord.com/developers/applications) and create an application
-2. Copy the **Application ID**
-3. In the app: Settings → Discord → paste the ID
+Enable **Settings → Discord** to show what you are listening to. The app ships with a built-in Discord application for Rich Presence; use **arRPC** if you use Discord in the browser or Vesktop (see the in-app toggle and hint text).
 
 ## Ad handling
 
@@ -75,6 +95,7 @@ Plugins are managed in **Settings → Plugins**. Enable or disable them there. N
 ## Development & Testing
 
 - **Run the app**: `npm run electron` (or `npm run electron:dev` for dev server + Electron).
+- **Lint & types**: `npm run lint` and `npm run typecheck`.
 - **Settings UI (React)**: `npm run test` (watch) or `npm run test:run` (single run). Uses Vitest and Testing Library.
 - **Electron scripts**: `npm run test:electron` runs the playback ad-detection unit tests (Node).
 - **All tests**: `npm run test:all` runs both the Vitest suite and the Electron script tests.

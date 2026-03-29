@@ -4,28 +4,29 @@ import type { AppSettings } from "../types";
 /** Shared default settings for tests. Import in tests to avoid duplication. */
 export const defaultSettings: AppSettings = {
   general: {
-    start_minimized: false,
-    minimize_to_tray: true,
-    launch_at_login: false,
+    startMinimized: false,
+    minimizeToTray: true,
+    launchAtLogin: false,
   },
   appearance: {
     theme: "system",
-    accent_color: "#b0b0b0",
-    font_size: "medium",
-    compact_mode: false,
+    accentColor: "#b0b0b0",
+    accentSource: "custom",
+    fontSize: "medium",
+    compactMode: false,
   },
   discord: {
     enabled: false,
-    show_buttons: true,
-    hide_listening: false,
-    use_arrpc: false,
+    showButtons: true,
+    hideListening: false,
+    useArrpc: false,
   },
   plugins: {
-    enabled_plugins: [],
+    enabledPlugins: [],
   },
   advanced: {
-    custom_css: "",
-    custom_js: "",
+    customCss: "",
+    customJs: "",
   },
 };
 
@@ -45,6 +46,9 @@ const createElectronAPI = (settings: AppSettings = defaultSettings) => ({
   },
   listPlugins: () => Promise.resolve([]),
   debugPlugins: () => Promise.resolve({}),
+  getEffectiveAccentColor: () => Promise.resolve(settings.appearance.accentColor),
+  getKdeAccentAvailable: () => Promise.resolve(false),
+  onKdeAccentChanged: () => () => {},
 });
 
 window.__electronAPIMock = {

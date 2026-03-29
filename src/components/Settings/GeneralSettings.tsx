@@ -11,22 +11,22 @@ export function GeneralSettings({ settings, onChange }: GeneralSettingsProps) {
   return (
     <SettingsSection title="General">
       <p className="setting-hint">
-        <strong>Tip:</strong> Press <kbd>Ctrl+Shift+S</kbd> (<kbd>Cmd+Shift+S</kbd> on Mac) to open Settings.
+        <strong>Shortcut:</strong> <kbd>Ctrl+Shift+S</kbd> (or <kbd>Cmd+Shift+S</kbd> on macOS) opens this window from the player.
       </p>
       <SettingCheckbox
         label="Start minimized"
-        checked={settings.start_minimized}
-        onChange={(v) => onChange({ ...settings, start_minimized: v })}
+        checked={settings.startMinimized}
+        onChange={(v) => onChange({ ...settings, startMinimized: v })}
       />
       <SettingCheckbox
         label="Minimize to tray"
-        checked={settings.minimize_to_tray}
-        onChange={(v) => onChange({ ...settings, minimize_to_tray: v })}
+        checked={settings.minimizeToTray}
+        onChange={(v) => onChange({ ...settings, minimizeToTray: v })}
       />
       <SettingCheckbox
         label="Launch at login"
-        checked={settings.launch_at_login}
-        onChange={(v) => onChange({ ...settings, launch_at_login: v })}
+        checked={settings.launchAtLogin}
+        onChange={(v) => onChange({ ...settings, launchAtLogin: v })}
         hint="(Restart required)"
       />
     </SettingsSection>

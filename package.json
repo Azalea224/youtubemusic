@@ -15,17 +15,22 @@
     "test:all": "npm run test:run && npm run test:electron",
     "electron": "electron .",
     "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:1420 && electron .\"",
-    "electron:build": "npm run build && node scripts/copy-icon.cjs && electron-builder"
+    "electron:build": "npm run build && node scripts/copy-icon.cjs && electron-builder",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@ghostery/adblocker-electron": "^2.14.1",
     "cross-fetch": "^4.1.0",
     "discord-rich-presence": "^0.0.8",
+    "mpris-service": "^2.1.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "ws": "^8.20.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.4",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
     "@testing-library/user-event": "^14.5.2",
@@ -35,10 +40,14 @@
     "concurrently": "^9.1.0",
     "electron": "^40.8.4",
     "electron-builder": "^26.8.1",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^15.15.0",
     "jsdom": "^29.0.1",
     "patch-package": "^8.0.0",
     "sharp": "^0.34.5",
     "typescript": "~5.8.3",
+    "typescript-eslint": "^8.57.2",
     "vite": "^8.0.2",
     "vitest": "^4.1.1",
     "wait-on": "^9.0.4"
@@ -50,15 +59,43 @@
     "directories": {
       "output": "release"
     },
+    "protocols": [
+      {
+        "name": "YouTube Music",
+        "schemes": [
+          "youtubemusic"
+        ]
+      }
+    ],
     "linux": {
       "executableName": "youtube-music-client",
       "icon": "build/icons",
       "target": [
         "AppImage",
-        "tar.gz"
+        "pacman",
+        "deb",
+        "rpm"
       ],
       "category": "Audio",
-      "maintainer": "YouTube Music Client <noreply@example.com>"
+      "maintainer": "YouTube Music Client <noreply@example.com>",
+      "desktop": {
+        "entry": {
+          "StartupWMClass": "youtube-music-client",
+          "Keywords": "Music;YouTube;Audio;Streaming;AudioVideo;",
+          "MimeType": "x-scheme-handler/youtubemusic;"
+        }
+      },
+      "pacman": {
+        "depends": [
+          "gtk3",
+          "nss",
+          "alsa-lib",
+          "libxss",
+          "libxtst",
+          "mesa",
+          "libnotify"
+        ]
+      }
     },
     "win": {
       "icon": "build/icon.png",

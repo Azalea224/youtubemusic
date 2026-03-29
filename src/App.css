@@ -155,6 +155,27 @@ body {
   color: #888;
 }
 
+.kde-accent-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 120px;
+}
+
+.kde-accent-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  border: 1px solid #444;
+  flex-shrink: 0;
+}
+
+.kde-accent-hex {
+  font-size: 0.85rem;
+  color: #ccc;
+}
+
 .no-plugins {
   color: #aaa;
   font-style: italic;
