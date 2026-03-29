@@ -1,7 +1,7 @@
 {
   "name": "youtube-music-client",
   "private": true,
-  "version": "0.3.1-alpha",
+  "version": "0.4.0-beta",
   "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
