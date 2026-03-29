@@ -12,7 +12,7 @@ Releases are on [GitHub Releases](https://github.com/Azalea224/youtubemusic/rele
 
 | Platform | File |
 |----------|------|
-| **Linux** (recommended) | `.AppImage` (portable); `.deb` / `.rpm` (install with `apt`/`dnf`/`rpm`); `.pkg.tar.*` (Arch, `pacman -U`) |
+| **Linux** (recommended) | `.AppImage` (portable); `.deb` / `.rpm` (install with `apt`/`dnf`/`rpm`); `.pacman` (Arch, `pacman -U`) |
 | **Windows** (secondary) | portable `.exe` |
 
 On Linux, the app detects a Wayland session (`XDG_SESSION_TYPE=wayland`) and uses native Wayland when available; global shortcuts use the GlobalShortcuts portal. Appearance options can follow the system theme and (on KDE Plasma) accent colours from `~/.config/kdeglobals`.
@@ -39,13 +39,13 @@ sudo dnf install ./YouTubeMusic-*-linux-x64.rpm
 
 ### Arch Linux (`pacman`)
 
-- **From GitHub Releases** – Use the `YouTubeMusic-*-linux-x64.pkg.tar.*` or `…-linux-arm64.pkg.tar.*` asset for your CPU, then:
+- **From GitHub Releases** – Download the `YouTubeMusic-*-linux-*.pacman` asset for your CPU (x86_64 or aarch64), then:
 
 ```bash
-sudo pacman -U ./YouTubeMusic-*-linux-*.pkg.tar.*
+sudo pacman -U ./YouTubeMusic-*-linux-*.pacman
 ```
 
-- **From source** – Clone this repo and run `npm run electron:build` to produce Linux artifacts under `release/` (see `package.json` / electron-builder config). For Arch, the `.pkg.tar.*` from GitHub Releases is the supported install path unless you maintain your own PKGBUILD.
+- **From source** – Clone this repo and run `npm run electron:build` to produce Linux artifacts under `release/` (see `package.json` / electron-builder config). For Arch, the `.pacman` package from GitHub Releases is the supported install path unless you maintain your own PKGBUILD.
 
 ## Features
 

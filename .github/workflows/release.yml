@@ -33,6 +33,7 @@ jobs:
           name: linux-amd64
           path: |
             release/YouTubeMusic-*.AppImage
+            release/YouTubeMusic-*.pacman
             release/YouTubeMusic-*.pkg.tar.*
             release/YouTubeMusic-*.deb
             release/YouTubeMusic-*.rpm
@@ -59,6 +60,7 @@ jobs:
           name: linux-arm64
           path: |
             release/YouTubeMusic-*.AppImage
+            release/YouTubeMusic-*.pacman
             release/YouTubeMusic-*.pkg.tar.*
             release/YouTubeMusic-*.deb
             release/YouTubeMusic-*.rpm
@@ -97,10 +99,12 @@ jobs:
           tag_name: ${{ github.ref_name }}
           generate_release_notes: true
           # Match package.json artifactName: YouTubeMusic-${version}-${os}-${arch}.${ext}
+          # Pacman target uses .pacman (fpm), not .pkg.tar.*
           # Do not use **/*.exe — win-unpacked/ contains many Chromium helper .exe files.
           files: |
             artifacts/**/YouTubeMusic-*.AppImage
             artifacts/**/YouTubeMusic-*-win-*.exe
+            artifacts/**/YouTubeMusic-*.pacman
             artifacts/**/YouTubeMusic-*.pkg.tar.*
             artifacts/**/YouTubeMusic-*.deb
             artifacts/**/YouTubeMusic-*.rpm
