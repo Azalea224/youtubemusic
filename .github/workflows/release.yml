@@ -21,7 +21,8 @@ jobs:
       - name: Install fpm and distro packaging tools (deb/rpm/pacman)
         run: |
           sudo apt-get update
-          sudo apt-get install -y ruby ruby-dev build-essential rpm fakeroot dpkg-dev
+          # libarchive-tools provides bsdtar; fpm needs it for -t pacman (.MTREE) on Ubuntu
+          sudo apt-get install -y ruby ruby-dev build-essential rpm fakeroot dpkg-dev libarchive-tools
           sudo gem install fpm
       - run: npm ci
       - run: npm run electron:build -- --linux --publish never
@@ -47,7 +48,7 @@ jobs:
       - name: Install fpm and distro packaging tools (deb/rpm/pacman)
         run: |
           sudo apt-get update
-          sudo apt-get install -y ruby ruby-dev build-essential rpm fakeroot dpkg-dev
+          sudo apt-get install -y ruby ruby-dev build-essential rpm fakeroot dpkg-dev libarchive-tools
           sudo gem install fpm
       - run: npm ci
       - run: npm run electron:build -- --linux AppImage pacman deb rpm --arm64 --publish never
