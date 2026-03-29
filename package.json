@@ -84,18 +84,18 @@
           "Keywords": "Music;YouTube;Audio;Streaming;AudioVideo;",
           "MimeType": "x-scheme-handler/youtubemusic;"
         }
-      },
-      "pacman": {
-        "depends": [
-          "gtk3",
-          "nss",
-          "alsa-lib",
-          "libxss",
-          "libxtst",
-          "mesa",
-          "libnotify"
-        ]
       }
+    },
+    "pacman": {
+      "depends": [
+        "gtk3",
+        "nss",
+        "alsa-lib",
+        "libxss",
+        "libxtst",
+        "mesa",
+        "libnotify"
+      ]
     },
     "win": {
       "icon": "build/icon.png",
